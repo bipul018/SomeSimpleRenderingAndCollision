@@ -44,7 +44,7 @@ StackAllocator alloc_stack_allocator(size_t reserve, size_t commit) {
     reserve = align_up_(reserve, allocr.page_size);
     commit = align_up_(commit, allocr.page_size);
     allocr.base_memory =
-        VirtualAlloc(NULL, reserve, MEM_RESERVE, PAGE_READWRITE);
+        VirtualAlloc(nullptr, reserve, MEM_RESERVE, PAGE_READWRITE);
     if (!allocr.base_memory)
         return allocr;
     allocr.reserved_memory = reserve;
@@ -614,7 +614,7 @@ void clear_device(const VkAllocationCallbacks* alloc_callbacks,
     case CREATE_DEVICE_PHY_DEVICE_TEST_ALLOC_FAIL:
     case CREATE_DEVICE_NO_GPU:
     case CREATE_DEVICE_FAILED:
-        *(param.p_phy_device) = *(param.p_device) = VK_NULL_HANDLE;
+        *(param.p_phy_device) = *(param.p_device) = nullptr;
     }
 }
 

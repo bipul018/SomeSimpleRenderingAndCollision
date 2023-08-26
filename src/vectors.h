@@ -7,12 +7,15 @@
 #include <math.h>
 #include <stdbool.h>
 
+#define VEC_API static inline
+
 #define swap_stuff(type, a, b)                                       \
     {                                                                \
         type temporary_variable = (a);                               \
         (a) = (b);                                                   \
         (b) = temporary_variable;                                    \
     }                           \
+
 
 
 union Vec2 {
@@ -45,39 +48,39 @@ typedef union Vec3 Vec3;
 
 static float g_vec_epsilon = 0.00001f;
 
-static inline bool vec3_equality(Vec3 a, Vec3 b) {
+VEC_API bool vec3_equality(Vec3 a, Vec3 b) {
     return (fabsf(a.x - b.x) < g_vec_epsilon) &&
       (fabsf(a.y - b.y) < g_vec_epsilon) &&
       (fabsf(a.z - b.z) < g_vec_epsilon);
 }
 
-static inline Vec3 vec3_to_radians(Vec3 degrees) {
+VEC_API Vec3 vec3_to_radians(Vec3 degrees) {
     return (Vec3){ degrees.x * M_PI / 180.f,
                    degrees.y * M_PI / 180.f,
                    degrees.z * M_PI / 180.f };
 }
 
-static inline Vec3 vec3_to_degrees(Vec3 radians) {
+VEC_API Vec3 vec3_to_degrees(Vec3 radians) {
     
     return (Vec3){ radians.x * M_1_PI * 180.f,
                    radians.y * M_1_PI * 180.f,
                    radians.z * M_1_PI * 180.f };
 }
 
-static inline float vec3_magnitude(Vec3 v) {
+VEC_API float vec3_magnitude(Vec3 v) {
     return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
-static inline Vec3 vec3_normalize(Vec3 v) {
+VEC_API Vec3 vec3_normalize(Vec3 v) {
     float mag = vec3_magnitude(v);
     return (Vec3){ .x = v.x / mag, .y = v.y / mag, .z = v.z / mag };
 }
 
-static inline Vec3 vec3_scale_fl(Vec3 v, float s) {
+VEC_API Vec3 vec3_scale_fl(Vec3 v, float s) {
     return (Vec3){ v.x * s, v.y * s, v.z * s };
 }
 
-static inline Vec3 vec3_neg(Vec3 v) {
+VEC_API Vec3 vec3_neg(Vec3 v) {
     return (Vec3){
         -v.x,
         -v.y,
@@ -85,7 +88,7 @@ static inline Vec3 vec3_neg(Vec3 v) {
     };
 }
 
-static inline Vec3 vec3_cross(Vec3 a, Vec3 b) {
+VEC_API Vec3 vec3_cross(Vec3 a, Vec3 b) {
     return (Vec3){
         a.y * b.z - a.z * b.y,
         b.x * a.z - a.x * b.z,
@@ -93,26 +96,26 @@ static inline Vec3 vec3_cross(Vec3 a, Vec3 b) {
     };
 }
 
-static inline float vec3_dot(Vec3 a, Vec3 b) {
+VEC_API float vec3_dot(Vec3 a, Vec3 b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-static inline Vec3 vec3_sub(Vec3 a, Vec3 b) {
+VEC_API Vec3 vec3_sub(Vec3 a, Vec3 b) {
     return (Vec3){ a.x - b.x, a.y - b.y, a.z - b.z };
 }
 
-static inline Vec3 vec3_add(Vec3 a, Vec3 b) {
+VEC_API Vec3 vec3_add(Vec3 a, Vec3 b) {
     return (Vec3){ a.x + b.x, a.y + b.y, a.z + b.z };
 }
 
-static inline Vec3 vec3_add_4(Vec3 a, Vec3 b, Vec3 c, Vec3 d) {
+VEC_API Vec3 vec3_add_4(Vec3 a, Vec3 b, Vec3 c, Vec3 d) {
     return (Vec3){
         a.x + b.x + c.x + d.x,
         a.y + b.y + c.y + d.y,
         a.z + b.z + c.z + d.z,
     };
 }
-static inline Vec3 vec3_orthogonal(Vec3 v) {
+VEC_API Vec3 vec3_orthogonal(Vec3 v) {
     float x = fabsf(v.x);
     float y = fabsf(v.y);
     float z = fabsf(v.z);
@@ -142,7 +145,7 @@ union Vec4 {
 typedef union Vec4 Vec4;
 typedef const Vec4 CVec4;
 
-static inline Vec4 vec4_from_vec3(Vec3 v, float w) {
+VEC_API Vec4 vec4_from_vec3(Vec3 v, float w) {
     return (Vec4){ .x = v.x, .y = v.y, .z = v.z, .w = w };
 }
 
@@ -174,38 +177,38 @@ typedef const Mat4 CMat4;
         { 0.0f, 0.0f, 0.0f, 1.0f }                                 \
     }}
 
-static inline float vec4_dot_vec(CVec4 a, CVec4 b) {
+VEC_API float vec4_dot_vec(CVec4 a, CVec4 b) {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }
 
-static inline Vec4 vec4_scale_fl(CVec4 vec, const float f) {
+VEC_API Vec4 vec4_scale_fl(CVec4 vec, const float f) {
     return (Vec4){ vec.x * f, vec.y * f, vec.z * f, vec.w * f };
 }
 
-static inline Vec4 vec4_scale_vec(CVec4 v1, CVec4 v2) {
+VEC_API Vec4 vec4_scale_vec(CVec4 v1, CVec4 v2) {
     return (Vec4){ v1.x * v2.x, v1.y * v2.y, v1.z * v2.z, v1.w * v2.w };
 }
 
-static inline Vec4 vec4_add_vec(CVec4 a, CVec4 b) {
+VEC_API Vec4 vec4_add_vec(CVec4 a, CVec4 b) {
     return (Vec4){ a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w };
 }
 
-static inline Vec4 vec4_sub_vec(CVec4 a, CVec4 b) {
+VEC_API Vec4 vec4_sub_vec(CVec4 a, CVec4 b) {
     return (Vec4){ a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w };
 }
 
-static inline Vec4 vec4_add_vec_4(CVec4 a, CVec4 b, CVec4 c, CVec4 d) {
+VEC_API Vec4 vec4_add_vec_4(CVec4 a, CVec4 b, CVec4 c, CVec4 d) {
     return (Vec4){ a.x + b.x + c.x + d.x, a.y + b.y + c.y + d.y,
                    a.z + b.z + c.z + d.z, a.w + b.w + c.w + d.w };
 }
 
-static inline float vec4_mag(Vec4 v) { return sqrtf(vec4_dot_vec(v, v)); }
+VEC_API float vec4_mag(Vec4 v) { return sqrtf(vec4_dot_vec(v, v)); }
 
-static inline Vec4 vec4_normalize(Vec4 v) {
+VEC_API Vec4 vec4_normalize(Vec4 v) {
     return vec4_scale_fl(v, 1.f / vec4_mag(v));
 }
 
-static inline Vec3 vec3_from_vec4(Vec4 v) {
+VEC_API Vec3 vec3_from_vec4(Vec4 v) {
     return (Vec3){
         v.x,
         v.y,
@@ -213,7 +216,7 @@ static inline Vec3 vec3_from_vec4(Vec4 v) {
     };
 }
 
-static inline Vec4 vec4q_from_rot_vf(Vec3 norm_vec, float angle) {
+VEC_API Vec4 vec4q_from_rot_vf(Vec3 norm_vec, float angle) {
     float c2 = cosf(angle / 2);
     float s2 = sinf(angle / 2);
 
@@ -223,11 +226,11 @@ static inline Vec4 vec4q_from_rot_vf(Vec3 norm_vec, float angle) {
     return (Vec4){ norm_vec.x, norm_vec.y, norm_vec.z, c2 };
 }
 
-static inline Vec4 vec4q_conjugate(Vec4 q) {
+VEC_API Vec4 vec4q_conjugate(Vec4 q) {
     return (Vec4){ -q.x, -q.y, -q.z, q.w };
 }
 
-static inline Vec4 vec4q_mul_vecq(Vec4 q1, Vec4 q2) {
+VEC_API Vec4 vec4q_mul_vecq(Vec4 q1, Vec4 q2) {
 
     Vec3 v = vec3_cross(vec3_from_vec4(q1), vec3_from_vec4((q2)));
     v.x += q1.w * q2.x + q1.x * q2.w;
@@ -240,12 +243,12 @@ static inline Vec4 vec4q_mul_vecq(Vec4 q1, Vec4 q2) {
 
 }
 
-static inline Vec4 vec4q_inverse(Vec4 q) {
+VEC_API Vec4 vec4q_inverse(Vec4 q) {
     return vec4_scale_fl(vec4q_conjugate(q), 1.f / vec4_mag(q));
 }
 
 //Not necessary to be normalized
-static inline Vec4 vec4q_rotation_vec(Vec3 org, Vec3 dst) {
+VEC_API Vec4 vec4q_rotation_vec(Vec3 org, Vec3 dst) {
     float dot = vec3_dot(org, dst);
     float len_prod = sqrtf(vec3_dot(org, org) * vec3_dot(dst, dst));
     if (fabsf(dot/len_prod + 1.f) < g_vec_epsilon) {
@@ -257,21 +260,21 @@ static inline Vec4 vec4q_rotation_vec(Vec3 org, Vec3 dst) {
     }
 }
 
-static inline Vec3 vec4q_rotate_v3(Vec4 quat, Vec3 vec) {
+VEC_API Vec3 vec4q_rotate_v3(Vec4 quat, Vec3 vec) {
     return vec3_from_vec4(
       vec4q_mul_vecq(quat,
                      vec4q_mul_vecq(vec4_from_vec3(vec, 0.f),
                                     vec4q_conjugate(quat))));
 }
 
-static inline Vec4 mat4_multiply_vec(CMat4 *mat, CVec4 v) {
+VEC_API Vec4 mat4_multiply_vec(CMat4 *mat, CVec4 v) {
     return vec4_add_vec_4(vec4_scale_fl(mat->cols[0], v.x),
                           vec4_scale_fl(mat->cols[1], v.y),
                           vec4_scale_fl(mat->cols[2], v.z),
                           vec4_scale_fl(mat->cols[3], v.w));    
 }
 
-static inline Mat4 mat4_multiply_mat(CMat4 *a, CMat4 *b) {
+VEC_API Mat4 mat4_multiply_mat(CMat4 *a, CMat4 *b) {
 
     return (Mat4){ .cols[0] = mat4_multiply_vec(a, b->cols[0]),
                    .cols[1] = mat4_multiply_vec(a, b->cols[1]),
@@ -280,7 +283,7 @@ static inline Mat4 mat4_multiply_mat(CMat4 *a, CMat4 *b) {
 
 }
 
-static inline Mat4 mat4_multiply_mat_3(CMat4 *a, CMat4 *b, CMat4 *c) {
+VEC_API Mat4 mat4_multiply_mat_3(CMat4 *a, CMat4 *b, CMat4 *c) {
     Mat4 temp = mat4_multiply_mat(b, c);
     return mat4_multiply_mat(a, &temp);
 }
@@ -290,7 +293,7 @@ static inline Mat4 mat4_multiply_mat_3(CMat4 *a, CMat4 *b, CMat4 *c) {
 //If null is given to out, only determinant is given,
 //Else if matrix is non singular, out will have output matrix,
 //Else it may be invalid matrix
-static inline float mat4_det_inv(Mat4 a, Mat4 *out) {
+VEC_API float mat4_det_inv(Mat4 a, Mat4 *out) {
     Mat4 b = MAT4_IDENTITIY;
 
     //Calcuate determinant
@@ -340,7 +343,7 @@ static inline float mat4_det_inv(Mat4 a, Mat4 *out) {
 }
 
 //Form transformation matrices, radians expected
-static inline Mat4 mat4_rotation_Z(float angle) {
+VEC_API Mat4 mat4_rotation_Z(float angle) {
 
     float c = cosf(angle);
     float s = sinf(angle);
@@ -352,7 +355,7 @@ static inline Mat4 mat4_rotation_Z(float angle) {
 
 }
 
-static inline Mat4 mat4_rotation_X(float angle) {
+VEC_API Mat4 mat4_rotation_X(float angle) {
 
     float c = cosf(angle);
     float s = sinf(angle);
@@ -363,7 +366,7 @@ static inline Mat4 mat4_rotation_X(float angle) {
 
 }
 
-static inline Mat4 mat4_rotation_Y(float angle) {
+VEC_API Mat4 mat4_rotation_Y(float angle) {
     float c = cosf(angle);
     float s = sinf(angle);
     return (Mat4){ { { c, 0.f, -s, 0.f },
@@ -373,7 +376,7 @@ static inline Mat4 mat4_rotation_Y(float angle) {
 
 }
 
-static inline Mat4 mat4_rotation_XYZ(Vec3 angles) {
+VEC_API Mat4 mat4_rotation_XYZ(Vec3 angles) {
     Mat4 rx = mat4_rotation_X(angles.x);
     Mat4 ry = mat4_rotation_Y(angles.y);
     Mat4 rz = mat4_rotation_Z(angles.z);
@@ -381,7 +384,7 @@ static inline Mat4 mat4_rotation_XYZ(Vec3 angles) {
     return mat4_multiply_mat_3(&rz, &ry, &rx);
 }
 
-static inline Mat4 mat4_rotation_ZYX(Vec3 angles) {
+VEC_API Mat4 mat4_rotation_ZYX(Vec3 angles) {
     Mat4 rx = mat4_rotation_X(angles.x);
     Mat4 ry = mat4_rotation_Y(angles.y);
     Mat4 rz = mat4_rotation_Z(angles.z);
@@ -389,14 +392,14 @@ static inline Mat4 mat4_rotation_ZYX(Vec3 angles) {
     return mat4_multiply_mat_3(&rx, &ry, &rz);
 }
 
-static inline Mat4 mat4_scale_3(float sx, float sy, float sz) {
+VEC_API Mat4 mat4_scale_3(float sx, float sy, float sz) {
     return (Mat4){ { { sx, 0.f, 0.f, 0.f },
                      { 0.f, sy, 0.f, 0.f },
                      { 0.f, 0.f, sz, 0.f },
                      { 0.f, 0.f, 0.f, 1.f } } };
 }
 
-static inline Mat4 mat4_translate_3(float tx, float ty, float tz) {
+VEC_API Mat4 mat4_translate_3(float tx, float ty, float tz) {
     return (Mat4){ { { 1.f, 0.f, 0.f, 0.f },
                      { 0.f, 1.f, 0.f, 0.f },
                      { 0.f, 0.f, 1.f, 0.f },
@@ -404,7 +407,7 @@ static inline Mat4 mat4_translate_3(float tx, float ty, float tz) {
 }
 
 //Linearly Maps world min, world max to -1,-1,0 to 1,1,1
-static inline Mat4 mat4_orthographic(Vec3 world_min, Vec3 world_max) {
+VEC_API Mat4 mat4_orthographic(Vec3 world_min, Vec3 world_max) {
 
     Vec4 min = { world_min.x, world_min.y, world_min.z };
     Vec4 max = { world_max.x, world_max.y, world_max.z };
@@ -423,7 +426,7 @@ static inline Mat4 mat4_orthographic(Vec3 world_min, Vec3 world_max) {
 
 //fov in radians
 //Gives a transformation matrix to apply, uses orthographic too in itself
-static inline Mat4 mat4_perspective(Vec3 world_min, Vec3 world_max,
+VEC_API Mat4 mat4_perspective(Vec3 world_min, Vec3 world_max,
                              float fovx) {
     Mat4 ortho = mat4_orthographic(world_min, world_max);
     float D = 1.f / tanf(fovx/2.f);

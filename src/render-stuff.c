@@ -101,14 +101,14 @@ uint32_t* read_spirv_in_stk_allocr(StackAllocator* stk_allocr,
                                    const char* file_name,
                                    size_t* p_file_size) {
     if (!stk_allocr || !p_stk_offset)
-        return NULL;
+        return nullptr;
 
     FILE* file = fopen(file_name, "rb");
 
     if (p_file_size)
         *p_file_size = 0;
     if (!file) {
-        return NULL;
+        return nullptr;
     }
 
     fseek(file, 0, SEEK_END);
@@ -120,7 +120,7 @@ uint32_t* read_spirv_in_stk_allocr(StackAllocator* stk_allocr,
                        align_up_(file_size, 4), sizeof(uint32_t));
     memset(buffer, 0, align_up_(file_size, 4));
     if (!buffer)
-        return NULL;
+        return nullptr;
 
     fread(buffer, 1, file_size, file);
     file_size = align_up_(file_size, 4);
@@ -460,7 +460,7 @@ void clear_semaphores(const VkAllocationCallbacks* alloc_callbacks,
         free(param.p_semaphores[0]);
 
     case CREATE_SEMAPHORES_ALLOC_FAIL:
-        *(param.p_semaphores) = NULL;
+        *(param.p_semaphores) = nullptr;
         break;
     }
 }
@@ -513,7 +513,7 @@ void clear_fences(const VkAllocationCallbacks* alloc_callbacks,
         free(param.p_fences[0]);
 
     case CREATE_FENCES_ALLOC_FAILED:
-        *(param.p_fences) = NULL;
+        *(param.p_fences) = nullptr;
         break;
     }
 }
@@ -559,7 +559,7 @@ void clear_primary_command_buffers(
         free(param.p_cmd_buffers[0]);
 
     case CREATE_PRIMARY_COMMAND_BUFFERS_ALLOC_FAILED:
-        param.p_cmd_buffers[0] = NULL;
+        param.p_cmd_buffers[0] = nullptr;
 
         break;
     }

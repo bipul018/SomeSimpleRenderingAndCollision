@@ -18,10 +18,27 @@ GenerateModelOutput load_cuboid_aa(StackAllocator *stk_allocr,
 
 GenerateModelOutput load_tube_solid(StackAllocator *stk_allocr, size_t stk_offset, int face_sides, int divisions);
 
+inline Vec3 lerp_pos_func(Vec3 vecs[3], float t) {
+    float s = 1 - t;
+    if (t <= 0.5f)
+        return vec3_add(vec3_scale_fl(vecs[0], s),
+                        vec3_scale_fl(vecs[1], t));
+    else
+        return vec3_add(vec3_scale_fl(vecs[1], s),
+                        vec3_scale_fl(vecs[2], t));
+
+}
+
+inline Vec3 lerp_grad_func(Vec3 vecs[3], float t) {
+    if (t <= 0.5f)
+        return vec3_add(vec3_scale_fl(vecs[0], -1.f), vecs[1]);
+    else
+        return vec3_add(vec3_scale_fl(vecs[1], -1.f), vecs[2]);
+}
 
 typedef Vec3 (*Vec3ParaFunc)(void * user_data, float t);
 
-bool remodel_verts_tube(struct Model model, int sides, int divs, float radius, Vec3ParaFunc pos_func , Vec3ParaFunc grad_func, void * user_data);
+bool remodel_verts_tube(struct Model model, int sides, int divs, float radius, typeof(Vec3(void*,float)) pos_func , Vec3 grad_func(void*,float) , void * user_data);
 
 inline Vec3 bezier_pos_func(Vec3 vecs[4], float t) {
     float s = 1 - t;
@@ -42,23 +59,6 @@ inline Vec3 bezier_grad_func(Vec3 vecs[4], float t) {
                       vec3_scale_fl(vecs[3], 3.f * t * t));
 }
 
-inline Vec3 lerp_pos_func(Vec3 vecs[3], float t) {
-    float s = 1 - t;
-    if (t <= 0.5f)
-    return vec3_add(vec3_scale_fl(vecs[0], s),
-                    vec3_scale_fl(vecs[1], t));
-    else
-        return vec3_add(vec3_scale_fl(vecs[1], s),
-                        vec3_scale_fl(vecs[2], t));
-
-}
-
-inline Vec3 lerp_grad_func(Vec3 vecs[3], float t) {
-    if (t <= 0.5f)
-    return vec3_add(vec3_scale_fl(vecs[0], -1.f), vecs[1]);
-    else
-    return vec3_add(vec3_scale_fl(vecs[1], -1.f), vecs[2]);
-}
 
 
 GenerateModelOutput load_text_character(StackAllocator *stk_allocr,size_t stk_offset,int codepoint, Vec3 extrude);

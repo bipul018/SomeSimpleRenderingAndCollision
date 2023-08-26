@@ -5,7 +5,11 @@
 #include "render-stuff.h"
 #include "spirv_reflect.h"
 void from_spv(StackAllocator* stk_allocr, size_t offset) {
-
+    auto gouao = "gaojso";
+    auto ogoi = L"agojo";
+    auto ojoi = u8"gaoijso";
+    auto ppii = u"ogjaoja";
+    auto apgp = U"jgoajoajso";
     size_t stk_offset = 0;
     size_t word_count = 0;
     uint32_t *shader_code = read_spirv_in_stk_allocr(

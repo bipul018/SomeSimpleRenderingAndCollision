@@ -16,7 +16,7 @@ struct VertexInput {
 
 typedef struct VertexInput VertexInput;
 
-const static VkVertexInputBindingDescription binding_descs[] = { {
+constexpr static VkVertexInputBindingDescription binding_descs[] = { {
     .binding = 0,
     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
     .stride = sizeof(VertexInput),
@@ -59,7 +59,7 @@ const static VkVertexInputAttributeDescription attrib_descs[] = {
 // Currently used push constants for current shader
 
 // Create descriptor layouts
-enum CreateDescriptorLayoutsCodes {
+enum CreateDescriptorLayoutsCodes : signed long {
     CREATE_DESCRIPTOR_LAYOUTS_ERR = -0x7fff,
     CREATE_DESCRIPTOR_LAYOUTS_MATRICES_LAYOUT_FAIL,
     CREATE_DESCRIPTOR_LAYOUTS_LIGHTS_LAYOUT_FAIL,
