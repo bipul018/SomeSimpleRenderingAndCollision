@@ -108,6 +108,13 @@ VEC_API Vec3 vec3_add(Vec3 a, Vec3 b) {
     return (Vec3){ a.x + b.x, a.y + b.y, a.z + b.z };
 }
 
+VEC_API Vec3 vec3_add_3(Vec3 a, Vec3 b, Vec3 c) {
+    return (Vec3){
+        a.x + b.x + c.x ,
+        a.y + b.y + c.y ,
+        a.z + b.z + c.z ,
+    };
+}
 VEC_API Vec3 vec3_add_4(Vec3 a, Vec3 b, Vec3 c, Vec3 d) {
     return (Vec3){
         a.x + b.x + c.x + d.x,

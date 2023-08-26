@@ -63,24 +63,6 @@ void VKAPI_PTR cb_free_fxn(void *user_data, void *p_mem) {
 }
 
 
-struct WinProcData {
-    UINT_PTR timer_id;
-    int width;
-    int height;
-    HANDLE win_handle;
-
-    POINT mouse_pos;
-    bool init_success;
-
-    // Data that are UI controlled
-    Vec3 *ptr_translate;
-    Vec3 *ptr_rotate;
-    Vec3 *ptr_scale;
-    bool char_pressed;
-    int char_codepoint;
-};
-
-
 // Letter unit
 struct CharacterModel {
     int codepoint;
@@ -133,136 +115,6 @@ bool push_character_model(StackAllocator *stk_allocr, size_t *stk_offset,
 // Forward declare message handler from imgui_impl_win32.cpp
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-LRESULT CALLBACK wnd_proc(HWND h_wnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-
-    struct WinProcData *pdata = NULL;
-
-    if (msg == WM_CREATE) {
-        CREATESTRUCT *cr_data = (CREATESTRUCT *) lparam;
-        pdata = (struct WinProcData *) cr_data->lpCreateParams;
-        SetWindowLongPtr(h_wnd, GWLP_USERDATA, (LONG_PTR) pdata);
-
-        pdata->win_handle = h_wnd;
-
-        RECT client_area;
-        GetClientRect(h_wnd, &client_area);
-        pdata->width = client_area.right;
-        pdata->height = client_area.bottom;
-
-        pdata->timer_id = SetTimer(h_wnd, 111, 20, NULL);
-
-    } else {
-        pdata = (struct WinProcData *) GetWindowLongPtr(h_wnd, GWLP_USERDATA);
-    }
-    if (ImGui_ImplWin32_WndProcHandler(h_wnd, msg, wparam, lparam))
-        return 1;
-    if (pdata) {
-        if (msg == WM_DESTROY) {
-            KillTimer(h_wnd, pdata->timer_id);
-            PostQuitMessage(0);
-            return 0;
-        }
-
-        if (msg == WM_PAINT) {
-
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(h_wnd, &ps);
-
-            // Rectangle(hdc, 10, 10, 300, 300);
-
-            EndPaint(h_wnd, &ps);
-        }
-        if (msg == WM_TIMER) {
-            if (wparam == pdata->timer_id) {
-                InvalidateRect(h_wnd, NULL, true);
-            }
-        }
-        if (msg == WM_SIZE) {
-
-            RECT client_area;
-            GetClientRect(h_wnd, &client_area);
-            pdata->width = client_area.right;
-            pdata->height = client_area.bottom;
-            // recreate_swapchain(pdata);
-        }
-
-        if (!pdata->init_success)
-            return DefWindowProc(h_wnd, msg, wparam, lparam);
-
-        if (!igGetIO()->WantCaptureKeyboard) {
-            if (msg == WM_KEYDOWN) {
-                switch (wparam) {
-                    if (pdata->ptr_translate) {
-                        case VK_NEXT:
-                            pdata->ptr_translate->z-=10.f;
-                        break;
-                        case VK_PRIOR:
-                            pdata->ptr_translate->z+=10.f;
-                        break;
-                        case VK_LEFT:
-                            pdata->ptr_translate->x-=10.f;
-                        break;
-                        case VK_RIGHT:
-                            pdata->ptr_translate->x+=10.f;
-                        break;
-                        case VK_UP:
-                            pdata->ptr_translate->y-=10.f;
-                        break;
-                        case VK_DOWN:
-                            pdata->ptr_translate->y+=10.f;
-                        break;
-                    }
-                }
-            }
-            if (msg == WM_CHAR) {
-                pdata->char_pressed = true;
-                pdata->char_codepoint = wparam;
-            }
-        }
-        if (!igGetIO()->WantCaptureMouse) {
-            if (msg == WM_SETCURSOR) {
-                HCURSOR cursor = LoadCursor(NULL, IDC_UPARROW);
-                SetCursor(cursor);
-            }
-            if (msg == WM_MOUSEWHEEL) {
-                if (pdata->ptr_scale) {
-                    *(pdata->ptr_scale) = vec3_scale_fl(
-                            *(pdata->ptr_scale),
-                            powf(1.1f, (float) GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA));
-                }
-            }
-            if (msg == WM_MOUSEMOVE) {
-                POINT mouse_pos = {.x = GET_X_LPARAM(lparam), .y = GET_Y_LPARAM(lparam)};
-                if ((wparam & MK_LBUTTON) && pdata->ptr_rotate) {
-
-                    Mat4 rot_org = mat4_rotation_XYZ(*pdata->ptr_rotate);
-
-                    Mat4 rot_new = mat4_rotation_XYZ(
-                            (Vec3) {.y = (mouse_pos.x - pdata->mouse_pos.x) / (-20 * M_PI),
-                                    .x = (mouse_pos.y - pdata->mouse_pos.y) / (20 * M_PI)});
-
-                    Mat4 res = mat4_multiply_mat(&rot_new, &rot_org);
-
-                    if (fabsf(fabsf(res.cols[0].comps[2]) - 1.f) > 0.0001f) {
-                        pdata->ptr_rotate->y = -asinf(res.mat[0][2]);
-                        pdata->ptr_rotate->x = atan2f(res.mat[1][2] / cosf(pdata->ptr_rotate->y),
-                                                      res.mat[2][2] / cosf(pdata->ptr_rotate->y));
-                        pdata->ptr_rotate->z = atan2f(res.mat[0][1] / cosf(pdata->ptr_rotate->y),
-                                                      res.mat[0][0] / cosf(pdata->ptr_rotate->y));
-                    } else {
-                        pdata->ptr_rotate->z = 0.f;
-                        pdata->ptr_rotate->y = res.mat[0][2] * M_PI / -2.f;
-                        pdata->ptr_rotate->x =
-                                atan2f(-res.mat[1][0] * res.mat[0][2], -res.mat[2][0] * res.mat[0][2]);
-                    }
-                }
-                pdata->mouse_pos = mouse_pos;
-            }
-        }
-    }
-
-    return DefWindowProc(h_wnd, msg, wparam, lparam);
-}
 
 #pragma warning(push, 3)
 #pragma warning(default : 4703 4700)
@@ -646,10 +498,10 @@ int init_vk_window(StackAllocator *stk_allocr, size_t stk_offset,
     WNDCLASS wnd_class = {0};
     wnd_class.hInstance = h_instance;
     wnd_class.lpszClassName = wndclass_name;
-    wnd_class.lpfnWndProc = wnd_proc;
+    wnd_class.lpfnWndProc = wnd_proc_func;
     RegisterClass(&wnd_class);
 
-    *p_wnd_handle = CreateWindowEx(0, wndclass_name, window_name, WS_OVERLAPPEDWINDOW, 20, 10, 800,
+    *p_wnd_handle = CreateWindowEx(0, wndclass_name, window_name, WS_OVERLAPPEDWINDOW | WS_MAXIMIZE, 20, 10, 800,
                                    700, NULL, NULL, h_instance, winproc_data);
     if (!(*p_wnd_handle))
         return INIT_VK_WINDOW_CREATE_WND_FAIL;
@@ -804,6 +656,157 @@ void clear_vk_window(const VkAllocationCallbacks *ptr_alloc_callbacks, HINSTANCE
         default:
             break;
     }
+}
+
+
+struct WinProcData {
+    UINT_PTR timer_id;
+    int width;
+    int height;
+    HANDLE win_handle;
+
+    POINT mouse_pos;
+    bool init_success;
+
+    // Data that are UI controlled
+    Vec3 *ptr_translate;
+    Vec3 *ptr_rotate;
+    Vec3 *ptr_scale;
+    bool char_pressed;
+    int char_codepoint;
+};
+
+
+LRESULT CALLBACK wnd_proc(HWND h_wnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+
+    struct WinProcData *pdata = NULL;
+
+    if (msg == WM_CREATE) {
+        CREATESTRUCT *cr_data = (CREATESTRUCT *) lparam;
+        pdata = (struct WinProcData *) cr_data->lpCreateParams;
+        SetWindowLongPtr(h_wnd, GWLP_USERDATA, (LONG_PTR) pdata);
+
+        pdata->win_handle = h_wnd;
+
+        RECT client_area;
+        GetClientRect(h_wnd, &client_area);
+        pdata->width = client_area.right;
+        pdata->height = client_area.bottom;
+
+        pdata->timer_id = SetTimer(h_wnd, 111, 20, NULL);
+
+    } else {
+        pdata = (struct WinProcData *) GetWindowLongPtr(h_wnd, GWLP_USERDATA);
+    }
+    if (ImGui_ImplWin32_WndProcHandler(h_wnd, msg, wparam, lparam))
+        return 1;
+    if (pdata) {
+        if (msg == WM_DESTROY) {
+            KillTimer(h_wnd, pdata->timer_id);
+            PostQuitMessage(0);
+            return 0;
+        }
+
+        if (msg == WM_PAINT) {
+
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(h_wnd, &ps);
+
+            // Rectangle(hdc, 10, 10, 300, 300);
+
+            EndPaint(h_wnd, &ps);
+        }
+        if (msg == WM_TIMER) {
+            if (wparam == pdata->timer_id) {
+                InvalidateRect(h_wnd, NULL, true);
+            }
+        }
+        if (msg == WM_SIZE) {
+
+            RECT client_area;
+            GetClientRect(h_wnd, &client_area);
+            pdata->width = client_area.right;
+            pdata->height = client_area.bottom;
+            // recreate_swapchain(pdata);
+        }
+
+        if (!pdata->init_success)
+            return DefWindowProc(h_wnd, msg, wparam, lparam);
+
+        if (!igGetIO()->WantCaptureKeyboard) {
+            if (msg == WM_KEYDOWN) {
+                if (pdata->ptr_translate) {
+                    switch (wparam) {
+                        case VK_NEXT:
+                            pdata->ptr_translate->z -= 10.f;
+                            break;
+                        case VK_PRIOR:
+                            pdata->ptr_translate->z += 10.f;
+                            break;
+                        case VK_LEFT:
+                            pdata->ptr_translate->x -= 10.f;
+                            break;
+                        case VK_RIGHT:
+                            pdata->ptr_translate->x += 10.f;
+                            break;
+                        case VK_UP:
+                            pdata->ptr_translate->y -= 10.f;
+                            break;
+                        case VK_DOWN:
+                            pdata->ptr_translate->y += 10.f;
+                            break;
+                    }
+                }
+            }
+            if (msg == WM_CHAR) {
+                pdata->char_pressed = true;
+                pdata->char_codepoint = wparam;
+            }
+        }
+        if (!igGetIO()->WantCaptureMouse) {
+            if (msg == WM_SETCURSOR) {
+                HCURSOR cursor = LoadCursor(NULL, IDC_UPARROW);
+                SetCursor(cursor);
+            }
+            if (msg == WM_MOUSEWHEEL) {
+                if (pdata->ptr_scale) {
+                    *(pdata->ptr_scale) = vec3_scale_fl(
+                            *(pdata->ptr_scale),
+                            powf(1.1f, (float) GET_WHEEL_DELTA_WPARAM(wparam) / WHEEL_DELTA));
+                }
+            }
+            if (msg == WM_MOUSEMOVE) {
+                POINT mouse_pos = {.x = GET_X_LPARAM(lparam), .y = GET_Y_LPARAM(lparam)};
+                if ((wparam & MK_LBUTTON) && pdata->ptr_rotate) {
+
+                    Mat4 rot_org = mat4_rotation_XYZ(*pdata->ptr_rotate);
+
+
+                    Mat4 rot_new = mat4_rotation_XYZ(
+                            (Vec3) {.y = (mouse_pos.x - pdata->mouse_pos.x) / (-20 * M_PI),
+                                    .x = (mouse_pos.y - pdata->mouse_pos.y) / (20 * M_PI)});
+
+                    Mat4 res = mat4_multiply_mat(&rot_new, &rot_org);
+
+                    if (fabsf(fabsf(res.cols[0].comps[2]) - 1.f) > 0.0001f) {
+                        pdata->ptr_rotate->y = -asinf(res.mat[0][2]);
+                        pdata->ptr_rotate->x = atan2f(res.mat[1][2] / cosf(pdata->ptr_rotate->y),
+                                                      res.mat[2][2] / cosf(pdata->ptr_rotate->y));
+                        pdata->ptr_rotate->z = atan2f(res.mat[0][1] / cosf(pdata->ptr_rotate->y),
+                                                      res.mat[0][0] / cosf(pdata->ptr_rotate->y));
+                    } else {
+                        pdata->ptr_rotate->z = 0.f;
+                        pdata->ptr_rotate->y = res.mat[0][2] * M_PI / -2.f;
+                        pdata->ptr_rotate->x =
+                                atan2f(-res.mat[1][0] * res.mat[0][2], -res.mat[2][0] * res.mat[0][2]);
+                    }
+                }
+                pdata->mouse_pos = mouse_pos;
+            }
+        }
+    }
+
+    return DefWindowProc(h_wnd, msg, wparam, lparam);
 }
 
 int main(int argc, char *argv[]) {
@@ -1151,7 +1154,12 @@ int main(int argc, char *argv[]) {
     struct Model ground_model = {0};
     struct Model sphere_model = {0};
     struct Model cube_model = {0};
-    struct Model sample_bezier = {0};
+    struct Model sample_tube = {0};
+    struct Model sample_grad = {0};
+    struct Model sample_accl = {0};
+    const int tube_sides = 6;
+    const int tube_divs = 20;
+    float tube_radius = 10.f;
 
     {
         GenerateModelOutput out;
@@ -1197,7 +1205,7 @@ int main(int argc, char *argv[]) {
                          },
                          &sphere_model) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
 
-        out = load_tube_solid(&stk_allocr, stk_offset, 10, 2);
+        out = load_tube_solid(&stk_allocr, stk_offset, tube_sides, tube_divs);
 
         if (create_model(ptr_alloc_callbacks,
                          (CreateModelParam) {
@@ -1208,7 +1216,34 @@ int main(int argc, char *argv[]) {
                                  .vertex_count = out.vertex_count,
                                  .vertices_list = out.vertices,
                          },
-                         &sample_bezier) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
+                         &sample_tube) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
+        if (!out.vertices || !out.indices) return_main_fail(MAIN_FAIL_MODEL_LOAD);
+
+        out = load_tube_solid(&stk_allocr, stk_offset, 4, 2);
+
+        if (create_model(ptr_alloc_callbacks,
+                         (CreateModelParam) {
+                                 .device = device.device,
+                                 .p_allocr = &gpu_mem_allocr,
+                                 .index_count = out.index_count,
+                                 .indices_list = out.indices,
+                                 .vertex_count = out.vertex_count,
+                                 .vertices_list = out.vertices,
+                         },
+                         &sample_grad) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
+        if (!out.vertices || !out.indices) return_main_fail(MAIN_FAIL_MODEL_LOAD);
+        out = load_tube_solid(&stk_allocr, stk_offset, 4, 2);
+
+        if (create_model(ptr_alloc_callbacks,
+                         (CreateModelParam) {
+                                 .device = device.device,
+                                 .p_allocr = &gpu_mem_allocr,
+                                 .index_count = out.index_count,
+                                 .indices_list = out.indices,
+                                 .vertex_count = out.vertex_count,
+                                 .vertices_list = out.vertices,
+                         },
+                         &sample_accl) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
         if (!out.vertices || !out.indices) return_main_fail(MAIN_FAIL_MODEL_LOAD);
     }
 
@@ -1221,22 +1256,82 @@ int main(int argc, char *argv[]) {
             .color = (Vec3) {0.4f, 0.8f, 0.2f},
     };
     struct Object3D scene_objs[100];
-    bool object_solid_mode[100];
+    bool object_solid_mode[100] = {0};
     int obj_count = 0;
     int active_obj = -1;
     struct CharacterModel *charac_models = NULL;
 
-    winproc_data.ptr_translate = NULL;
-    winproc_data.ptr_rotate = NULL;
-    winproc_data.ptr_scale = NULL;
+    //Push 4 scene_objs as spheres
+    struct Object3D *base_vertices_obj = scene_objs + obj_count;
+    scene_objs[obj_count++] = (struct Object3D) {
+            .ptr_model = &sphere_model,
+            .scale = {0.5f, 0.5f, 0.5f},
+            .translate = {0, 80},
+    };
+    scene_objs[obj_count++] = (struct Object3D) {
+            .ptr_model = &sphere_model,
+            .scale = {0.5f, 0.5f, 0.5f},
+            .translate = {500, 80},
+    };
+    scene_objs[obj_count++] = (struct Object3D) {
+            .ptr_model = &sphere_model,
+            .scale = {0.5f, 0.5f, 0.5f},
+            .translate = {0, 500}
+    };
+    scene_objs[obj_count++] = (struct Object3D) {
+            .ptr_model = &sphere_model,
+            .scale = {0.5f, 0.5f, 0.5f},
+            .translate = {100, 500}
+    };
+    struct Object3D *spline_obj = scene_objs + obj_count;
+    //Push spline object
+    object_solid_mode[obj_count] = true;
+    scene_objs[obj_count++] = (struct Object3D) {
+            .ptr_model = &sample_tube,
+            .scale = {1.f, 1.f, 1.f},
+            .color = {1.f, 0.f, 0.f},
+    };
+    struct Object3D *pointer_obj = scene_objs + obj_count;
+    //Push center object
+    object_solid_mode[obj_count] = true;
+    scene_objs[obj_count++] = (struct Object3D) {
+            .ptr_model = &cube_model,
+            .scale = {0.7f, 0.7f, 0.7f},
+            .color = {1.f, 1.f, 1.f},
+    };
+    //Push grad and accln splines
+    object_solid_mode[obj_count] = true;
+    scene_objs[obj_count++] = (struct Object3D) {
+            .ptr_model = &cube_model,
+            .scale = {0.4f, 0.4f, 0.4f},
+            .color = {0.f, 1.f, 0.f},
+    };
+    object_solid_mode[obj_count] = true;
+    scene_objs[obj_count++] = (struct Object3D) {
+            .ptr_model = &cube_model,
+            .scale = {0.4f, 0.4f, 0.4f},
+            .color = {0.f, 0.f, 1.f},
+    };
+    float spline_t = 0.f;
+    bool go_back = false;
+    float grad_len_scale = 0.05f;
+    float accln_len_scale = 0.01f;
+    float animate_spline_speed = 0.f;
 
-    Vec3 world_min = {-300, -300, -400};
-    Vec3 world_max = {300, 300, 400};
+    active_obj = 0;
+
+
+    Vec3 world_min = {-300, -300, -1500};
+    Vec3 world_max = {300, 300, 1500};
     float fov = M_PI / 3.f;
 
     Vec3 cam_scale = {1.f, 1.f, 1.f};
     Vec3 cam_translate = {0.f, 0.f, 0.f};
     Vec3 cam_rotate = {0.f, 0.f, 0.f};
+
+    winproc_data.ptr_translate = NULL;
+    winproc_data.ptr_rotate = NULL;
+    winproc_data.ptr_scale = NULL;
 
     Vec3 focus_pt = {0.f, 0.f, 0.f};
 
@@ -1244,6 +1339,7 @@ int main(int argc, char *argv[]) {
     bool model_control = false;
     bool light_control = false;
     bool focus_control = false;
+    bool animate_camera = false;
 
     Vec3 light_pos = {0.f, 0, -800.f};
     Vec3 light_col = {1.f, 1.f, 1.f};
@@ -1275,6 +1371,32 @@ int main(int argc, char *argv[]) {
             world_max.y = winproc_data.height / 2.f;
             gnd_obj.translate.y = world_max.y;
 
+            if (animate_camera)
+                cam_rotate.y += M_PI / 180.0;
+
+            if (go_back)
+                spline_t -= animate_spline_speed;
+            else
+                spline_t += animate_spline_speed;
+            if (spline_t >= 1.f)
+                go_back = true;
+            if (spline_t <= 0.f)
+                go_back = false;
+
+            {
+                Vec3 arr[] = {base_vertices_obj[0].translate,
+                              base_vertices_obj[1].translate,
+                              base_vertices_obj[2].translate,
+                              base_vertices_obj[3].translate};
+                pointer_obj[0].translate = cubic_bezier_pos_func(arr, spline_t);
+                pointer_obj[1].translate = vec3_add(pointer_obj[0].translate,
+                                                    vec3_scale_fl(cubic_bezier_grad_func(arr, spline_t),
+                                                                  grad_len_scale));
+                pointer_obj[2].translate = vec3_add(pointer_obj[0].translate,
+                                                   vec3_scale_fl(cubic_bezier_acc_func(arr, spline_t),
+                                                                 accln_len_scale));
+            }
+
             bool true_val = true;
             bool active_changed = false;
 
@@ -1282,7 +1404,6 @@ int main(int argc, char *argv[]) {
                 struct CharacterModel *ptr =
                         search_character_model(charac_models, winproc_data.char_codepoint);
                 if (ptr) {
-
                     active_obj = obj_count++;
                     object_solid_mode[active_obj] = true;
                     scene_objs[active_obj] = (struct Object3D) {
@@ -1296,7 +1417,7 @@ int main(int argc, char *argv[]) {
                 } else {
                     if (push_character_model(&stk_allocr, &stk_offset, ptr_alloc_callbacks,
                                              &gpu_mem_allocr, device.device, &charac_models,
-                                             winproc_data.char_codepoint) == true) {
+                                             winproc_data.char_codepoint)) {
 
                         active_obj = obj_count++;
                         object_solid_mode[active_obj] = true;
@@ -1352,6 +1473,30 @@ int main(int argc, char *argv[]) {
                     active_obj = (active_obj - 1);
                     active_changed = true;
                 }
+                igSliderFloat("Spline Radius", &tube_radius, 10.f, 300.f, "%.1f", 0);
+                {
+                    float log_grad = logf(grad_len_scale);
+                    igSliderFloat("Spline Grad Scale", &log_grad, -10.f, 4.f, "%.2f", 0);
+                    grad_len_scale = expf(log_grad);
+                }
+                {
+                    float log_acc = logf(accln_len_scale);
+                    igSliderFloat("Spline Accn Scale", &log_acc, -10.f, 4.f, "%.2f", 0);
+                    accln_len_scale = expf(log_acc);
+                }
+
+
+                igSliderFloat("Spline t", &spline_t, 0.f, 1.f, "%.2f", 0);
+                igSliderFloat("Spline Ride Animation Speed", &animate_spline_speed, 0.f, 0.1f, "%.3f", 0);
+                if (igButton("Update Spline", (ImVec2) {0})) {
+                    vkDeviceWaitIdle(device.device);
+                    Vec3 arr[] = {base_vertices_obj[0].translate,
+                                  base_vertices_obj[1].translate,
+                                  base_vertices_obj[2].translate,
+                                  base_vertices_obj[3].translate};
+                    remodel_verts_tube(sample_tube, tube_sides, tube_divs, tube_radius, cubic_bezier_pos_func,
+                                       cubic_bezier_grad_func, cubic_bezier_acc_func, arr);
+                }
 
                 igEnd();
             }
@@ -1381,6 +1526,11 @@ int main(int argc, char *argv[]) {
                 igColorEdit3("Sky Color", clear_col.comps, 0);
                 igSliderFloat("FOV : ", &fov, M_PI / 18.f, M_PI, NULL, 0);
                 igColorEdit3("Ground Color", gnd_obj.color.comps, 0);
+
+                if (igButton("Exit", (ImVec2) {0}))
+                    PostMessage(wnd_handle, WM_CLOSE, 0, 0);
+
+                igCheckbox("Animate Camera", &animate_camera);
 
                 igInputFloat3("Camera Position", cam_translate.comps, "%.2f", 0);
                 igInputFloat3("Camera Rotation", cam_rotate.comps, "%.2f", 0);
@@ -1631,7 +1781,9 @@ int main(int argc, char *argv[]) {
             clear_model(ptr_alloc_callbacks, device.device, &ground_model);
             clear_model(ptr_alloc_callbacks, device.device, &sphere_model);
             clear_model(ptr_alloc_callbacks, device.device, &cube_model);
-            clear_model(ptr_alloc_callbacks, device.device, &sample_bezier);
+            clear_model(ptr_alloc_callbacks, device.device, &sample_tube);
+            clear_model(ptr_alloc_callbacks, device.device, &sample_grad);
+            clear_model(ptr_alloc_callbacks, device.device, &sample_accl);
 
 
             ImGui_ImplVulkan_Shutdown();

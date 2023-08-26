@@ -3,7 +3,7 @@
 #include "font_verts.h"
 #include "tryout.h"
 
-GenerateModelOutput load_sphere_uv(StackAllocator* stk_allocr,
+GenerateModelOutput load_sphere_uv(StackAllocator *stk_allocr,
                                    size_t stk_offset,
                                    size_t num_parts, float radius) {
 
@@ -23,21 +23,21 @@ GenerateModelOutput load_sphere_uv(StackAllocator* stk_allocr,
 
     // Allocate the vertices and indices in stk_allocr
     out.vertices =
-        stack_allocate(stk_allocr, &stk_offset,
-                       sizeof(VertexInput) * out.vertex_count, 1);
+            stack_allocate(stk_allocr, &stk_offset,
+                           sizeof(VertexInput) * out.vertex_count, 1);
     out.indices = stack_allocate(
-        stk_allocr, &stk_offset, sizeof(uint16_t) * out.index_count,
-        1);
+            stk_allocr, &stk_offset, sizeof(uint16_t) * out.index_count,
+            1);
 
     if (!out.vertices || !out.indices)
-        return (GenerateModelOutput){ 0 };
+        return (GenerateModelOutput) {0};
 
     // Current vertex tracker
-    VertexInput* curr_vert = out.vertices;
+    VertexInput *curr_vert = out.vertices;
 
     // Create north pole
     {
-        curr_vert->pos = (Vec3){ 0.f, 0.f, radius };
+        curr_vert->pos = (Vec3) {0.f, 0.f, radius};
         curr_vert++;
     }
 
@@ -59,24 +59,24 @@ GenerateModelOutput load_sphere_uv(StackAllocator* stk_allocr,
             float theta = j * M_PI * 2.f / no_sides;
             float x = r * cosf(theta);
             float y = r * sinf(theta);
-            curr_vert->pos = (Vec3){ x, y, z };
+            curr_vert->pos = (Vec3) {x, y, z};
             curr_vert++;
         }
     }
 
     // Create the south pole
     {
-        curr_vert->pos = (Vec3){ 0.f, 0.f, -radius };
+        curr_vert->pos = (Vec3) {0.f, 0.f, -radius};
         curr_vert++;
     }
 
     // Fill the normals by just normalizing the vertices
     for (int i = 0; i < out.vertex_count; ++i) {
         out.vertices[i].normal = vec3_normalize(out.vertices[i].pos);
-        out.vertices[i].uv = (Vec2){ 0.f, 0.f };
+        out.vertices[i].uv = (Vec2) {0.f, 0.f};
     }
 
-    uint16_t* curr_inx = out.indices;
+    uint16_t *curr_inx = out.indices;
 
     // Fill the north & south pole triangles & quads
     {
@@ -92,22 +92,22 @@ GenerateModelOutput load_sphere_uv(StackAllocator* stk_allocr,
                 // Current point for north hemisphere {from
                 // beginning//Increasing order}
                 size_t curr_north_inx =
-                    north_pole + 1 + i * no_sides + j;
+                        north_pole + 1 + i * no_sides + j;
                 // Current point for south hemisphere {from
                 // last//Decreasing order}
                 size_t curr_south_inx =
-                    south_pole - 1 - i * no_sides - j;
+                        south_pole - 1 - i * no_sides - j;
 
                 // Next point for north hemisphere in same latitude
                 // circle
                 size_t next_north_inx =
-                    north_pole + 1 + i * no_sides + (j + 1) %
-                    no_sides;
+                        north_pole + 1 + i * no_sides + (j + 1) %
+                                                        no_sides;
                 // Next point for south hemisphere in same latitude
                 // circle {reverse order}
                 size_t next_south_inx =
-                    south_pole - 1 - i * no_sides - (j + 1) %
-                    no_sides;
+                        south_pole - 1 - i * no_sides - (j + 1) %
+                                                        no_sides;
 
                 // Case when triangles are to be formed
                 if (i == 0) {
@@ -126,7 +126,7 @@ GenerateModelOutput load_sphere_uv(StackAllocator* stk_allocr,
                     curr_inx += 3;
                 }
 
-                // Case when quads are to be formed
+                    // Case when quads are to be formed
                 else {
                     // Each current north/south hemisphere point ,
                     // along with next points, make quads with
@@ -160,38 +160,38 @@ GenerateModelOutput load_sphere_uv(StackAllocator* stk_allocr,
     return out;
 }
 
-GenerateModelOutput load_cuboid_aa(StackAllocator* stk_allocr,
+GenerateModelOutput load_cuboid_aa(StackAllocator *stk_allocr,
                                    size_t stk_offset, Vec3 dims) {
 
-    GenerateModelOutput out = { 0 };
+    GenerateModelOutput out = {0};
     out.vertex_count = 6 * 4;
     out.index_count = 6 * 2 * 3;
     out.vertices =
-        stack_allocate(stk_allocr, &stk_offset,
-                       out.vertex_count * sizeof *out.vertices, 1);
+            stack_allocate(stk_allocr, &stk_offset,
+                           out.vertex_count * sizeof *out.vertices, 1);
     out.indices =
-        stack_allocate(stk_allocr, &stk_offset,
-                       out.index_count * sizeof *out.indices, 1);
+            stack_allocate(stk_allocr, &stk_offset,
+                           out.index_count * sizeof *out.indices, 1);
 
-    Vec3* temp =
-        stack_allocate(stk_allocr, &stk_offset, 8 * sizeof *temp, 1);
+    Vec3 *temp =
+            stack_allocate(stk_allocr, &stk_offset, 8 * sizeof *temp, 1);
 
     if (!out.indices || !out.vertices)
-        return (GenerateModelOutput){ 0 };
+        return (GenerateModelOutput) {0};
 
     // Fill temp only for now
     //Fills in order : 0,x,y,xy,z,zx,zy,zxy
     for (int i = 0; i < 8; ++i) {
-        temp[i] = (Vec3){ -dims.x / 2, -dims.y / 2, -dims.z / 2 };
+        temp[i] = (Vec3) {-dims.x / 2, -dims.y / 2, -dims.z / 2};
         temp[i] = vec3_add(temp[i],
-                           (Vec3){
-                               .x = ((i & 0b001) ? dims.x : 0.f),
-                               .y = ((i & 0b010) ? dims.y : 0.f),
-                               .z = ((i & 0b100) ? dims.z : 0.f),
+                           (Vec3) {
+                                   .x = ((i & 0b001) ? dims.x : 0.f),
+                                   .y = ((i & 0b010) ? dims.y : 0.f),
+                                   .z = ((i & 0b100) ? dims.z : 0.f),
                            });
     }
 
-    VertexInput* vert = out.vertices;
+    VertexInput *vert = out.vertices;
 
     //Front face
     vert[0].pos = temp[0];
@@ -199,7 +199,7 @@ GenerateModelOutput load_cuboid_aa(StackAllocator* stk_allocr,
     vert[2].pos = temp[3];
     vert[3].pos = temp[2];
     vert[0].normal = vert[1].normal = vert[2].normal =
-        vert[3].normal = (Vec3){ 0.f, 0.f, -1.f };
+    vert[3].normal = (Vec3) {0.f, 0.f, -1.f};
 
     vert += 4;
 
@@ -210,7 +210,7 @@ GenerateModelOutput load_cuboid_aa(StackAllocator* stk_allocr,
     vert[2].pos = temp[6];
     vert[3].pos = temp[7];
     vert[0].normal = vert[1].normal = vert[2].normal =
-        vert[3].normal = (Vec3){ 0.f, 0.f, 1.f };
+    vert[3].normal = (Vec3) {0.f, 0.f, 1.f};
     vert += 4;
 
     //Right face
@@ -219,7 +219,7 @@ GenerateModelOutput load_cuboid_aa(StackAllocator* stk_allocr,
     vert[2].pos = temp[7];
     vert[3].pos = temp[3];
     vert[0].normal = vert[1].normal = vert[2].normal =
-        vert[3].normal = (Vec3){ 1.f, 0.f, 0.f };
+    vert[3].normal = (Vec3) {1.f, 0.f, 0.f};
     vert += 4;
 
     //Left face
@@ -228,7 +228,7 @@ GenerateModelOutput load_cuboid_aa(StackAllocator* stk_allocr,
     vert[2].pos = temp[2];
     vert[3].pos = temp[6];
     vert[0].normal = vert[1].normal = vert[2].normal =
-        vert[3].normal = (Vec3){ -1.f, 0.f, 0.f };
+    vert[3].normal = (Vec3) {-1.f, 0.f, 0.f};
     vert += 4;
 
     //Top face
@@ -237,7 +237,7 @@ GenerateModelOutput load_cuboid_aa(StackAllocator* stk_allocr,
     vert[2].pos = temp[1];
     vert[3].pos = temp[0];
     vert[0].normal = vert[1].normal = vert[2].normal =
-        vert[3].normal = (Vec3){ 0.f, -1.f, 0.f };
+    vert[3].normal = (Vec3) {0.f, -1.f, 0.f};
     vert += 4;
 
 
@@ -247,7 +247,7 @@ GenerateModelOutput load_cuboid_aa(StackAllocator* stk_allocr,
     vert[2].pos = temp[7];
     vert[3].pos = temp[6];
     vert[0].normal = vert[1].normal = vert[2].normal =
-        vert[3].normal = (Vec3){ 0.f, 1.f, 0.f };
+    vert[3].normal = (Vec3) {0.f, 1.f, 0.f};
     vert += 4;
 
     for (int i = 0; i < 6; ++i) {
@@ -264,7 +264,7 @@ GenerateModelOutput load_cuboid_aa(StackAllocator* stk_allocr,
 
 }
 
-GenerateModelOutput load_tube_solid(StackAllocator* stk_allocr,
+GenerateModelOutput load_tube_solid(StackAllocator *stk_allocr,
                                     size_t stk_offset, int face_sides,
                                     int divisions) {
 
@@ -274,15 +274,15 @@ GenerateModelOutput load_tube_solid(StackAllocator* stk_allocr,
     out.index_count = 3 * triangle_count;
 
     out.vertices =
-        stack_allocate(stk_allocr, &stk_offset,
-                       out.vertex_count * sizeof *out.vertices, 8);
+            stack_allocate(stk_allocr, &stk_offset,
+                           out.vertex_count * sizeof *out.vertices, 8);
     out.indices =
-        stack_allocate(stk_allocr, &stk_offset,
-                       out.index_count * sizeof *out.indices, 1);
+            stack_allocate(stk_allocr, &stk_offset,
+                           out.index_count * sizeof *out.indices, 1);
 
 
-    VertexInput* vptr = out.vertices;
-    IndexInput* iptr = out.indices;
+    VertexInput *vptr = out.vertices;
+    IndexInput *iptr = out.indices;
 
     //Only allocations of vertices is done, value will have to be set from outside
 
@@ -303,11 +303,11 @@ GenerateModelOutput load_tube_solid(StackAllocator* stk_allocr,
             int j1 = (j + 1) % face_sides;
 
             *(iptr++) = 1 + i * face_sides + j1;
-            *(iptr++) = 1 + i * face_sides + j;
             *(iptr++) = 1 + (i + 1) * face_sides + j1;
+            *(iptr++) = 1 + i * face_sides + j;
 
-            *(iptr++) = 1 + (i + 1) * face_sides + j1;
             *(iptr++) = 1 + i * face_sides + j;
+            *(iptr++) = 1 + (i + 1) * face_sides + j1;
             *(iptr++) = 1 + (i + 1) * face_sides + j;
 
         }
@@ -315,8 +315,8 @@ GenerateModelOutput load_tube_solid(StackAllocator* stk_allocr,
 
     //Form the final layer
     for (int i = 0; i < face_sides; ++i) {
-        *(iptr++) = out.vertex_count - 1;
         *(iptr++) = out.vertex_count - 2 - i;
+        *(iptr++) = out.vertex_count - 1;
         *(iptr++) = out.vertex_count - 2 - ((i + 1) % face_sides);
     }
 
@@ -326,19 +326,19 @@ GenerateModelOutput load_tube_solid(StackAllocator* stk_allocr,
 
 bool remodel_verts_tube(struct Model model, int sides, int divs,
                         float radius, Vec3ParaFunc pos_func,
-                        Vec3ParaFunc grad_func,
-                        void* user_data) {
+                        Vec3ParaFunc grad_func, Vec3ParaFunc accln_func,
+                        void *user_data) {
 
     if (!model.vert_buffer.mapped_memory)
         return false;
 
-    Vec4 q1 = vec4q_from_rot_vf((Vec3){ .z = 1.f }, M_PI / 2.f);
-    Vec3 p1 = { .x = 1.f };
-    Vec3 p2 = { .x = 2.f };
-    Vec3 p3 = { .x = 3.f };
-    Vec3 p4 = { .y = 1.f };
-    Vec3 p5 = { .y = 1.f };
-    Vec3 p6 = { .x = 1.f, .y = 1.f };
+    Vec4 q1 = vec4q_from_rot_vf((Vec3) {.z = 1.f}, M_PI / 2.f);
+    Vec3 p1 = {.x = 1.f};
+    Vec3 p2 = {.x = 2.f};
+    Vec3 p3 = {.x = 3.f};
+    Vec3 p4 = {.y = 1.f};
+    Vec3 p5 = {.y = 1.f};
+    Vec3 p6 = {.x = 1.f, .y = 1.f};
     p1 = vec4q_rotate_v3(q1, p1);
     p2 = vec4q_rotate_v3(q1, p2);
     p3 = vec4q_rotate_v3(q1, p3);
@@ -347,35 +347,43 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
     p6 = vec4q_rotate_v3(q1, p6);
 
 
-    VertexInput* vptr =
-        model.vert_buffer.mapped_memory;
+    VertexInput *vptr =
+            model.vert_buffer.mapped_memory;
 
     //Make the first point
     Vec3 first_ptr = pos_func(user_data, 0.f);
     Vec3 first_derv =
-        vec3_normalize(
-            vec3_scale_fl(grad_func(user_data, 0.f), -1.f));
+            vec3_normalize(
+                    vec3_scale_fl(grad_func(user_data, 0.f), -1.f));
     *(vptr++) =
-        (VertexInput){ .pos = first_ptr, .normal = first_derv };
+            (VertexInput) {.pos = first_ptr, .normal = first_derv};
 
     //Make the first layer
 
 
     {
-        Vec4 rot =
-            vec4q_rotation_vec((Vec3){ .z = -1.f }, first_derv);
-        for (int i = 0; i < sides; ++i) {
-            Vec3 pos = {
-                .x = cosf(i * 2 * M_PI / sides),
-                .y = sinf(i * 2 * M_PI / sides),
-            };
+        Vec3 accln = accln_func(user_data, 0);
+        if (!vec3_equality(accln, (Vec3) {0, 0, 0})) {
+            accln = vec3_sub(accln, vec3_scale_fl(first_derv, vec3_dot(accln, first_derv)));
+            if (!(vec3_equality(accln, (Vec3) {0, 0, 0}))) {
+                accln = vec3_normalize(accln);
+            }
+        }
+        if (vec3_equality(accln, (Vec3) {0, 0, 0})) {
+            accln = (Vec3){1.f,0.f,0.f};
+        }
 
-            pos = vec4q_rotate_v3(rot, pos);
-            *(vptr++) = (VertexInput){
-                .pos = vec3_add(
-                    first_ptr,
-                    vec3_scale_fl(pos, radius)),
-                .normal = first_derv,
+        Vec3 perp = vec3_normalize(vec3_cross(accln, first_derv));
+
+        for (int i = 0; i < sides; ++i) {
+
+            float t = i * 2 * M_PI / sides;
+            Vec3 norm = vec3_add(vec3_scale_fl(accln,  cosf(t)), vec3_scale_fl(perp, sinf(t)));
+            *(vptr++) = (VertexInput) {
+                    .pos = vec3_add(
+                            first_ptr,
+                            vec3_scale_fl(norm, radius)),
+                    .normal = first_derv,
             };
         }
     }
@@ -385,22 +393,31 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
 
         Vec3 center = pos_func(user_data, j * 1.f / divs);
         Vec3 grad =
-            vec3_normalize(grad_func(user_data, j * 1.f / divs));
+                vec3_normalize(grad_func(user_data, j * 1.f / divs));
 
-        Vec4 rot =
-            vec4q_rotation_vec((Vec3){ .z = 1.f }, grad);
+        Vec3 accln = accln_func(user_data, j * 1.f / divs);
+        if (!vec3_equality(accln, (Vec3) {0, 0, 0})) {
+            accln = vec3_sub(accln, vec3_scale_fl(grad, vec3_dot(accln, grad)));
+            if (!(vec3_equality(accln, (Vec3) {0, 0, 0}))) {
+                accln = vec3_normalize(accln);
+            }
+        }
+        if (vec3_equality(accln, (Vec3) {0, 0, 0})) {
+            accln = vptr[-sides].normal;
+        }
+
+        Vec3 perp = vec3_normalize(vec3_cross(accln, grad));
+
         for (int i = 0; i < sides; ++i) {
-            Vec3 pos = {
-                .x = cosf(i * 2 * M_PI / sides),
-                .y = sinf(i * 2 * M_PI / sides),
-            };
 
-            pos = vec4q_rotate_v3(rot, pos);
-            *(vptr++) = (VertexInput){
-                .pos = vec3_add(
-                    center,
-                    vec3_scale_fl(pos, radius)),
-                .normal = pos,
+            float t = i * 2 * M_PI / sides;
+            Vec3 norm = vec3_add(vec3_scale_fl(accln,  cosf(t)), vec3_scale_fl(perp, sinf(t)));
+
+            *(vptr++) = (VertexInput) {
+                    .pos = vec3_add(
+                            center,
+                            vec3_scale_fl(norm, radius)),
+                    .normal = norm,
             };
         }
     }
@@ -410,64 +427,74 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
 
     Vec3 last_center = pos_func(user_data, 1.f);
     Vec3 last_grad =
-        vec3_normalize(grad_func(user_data, 1.f));
+            vec3_normalize(grad_func(user_data, 1.f));
     {
-        Vec4 rot =
-            vec4q_rotation_vec((Vec3){ .z = 1.f }, last_grad);
-        for (int i = 0; i < sides; ++i) {
-            Vec3 pos = {
-                .x = cosf(i * 2 * M_PI / sides),
-                .y = sinf(i * 2 * M_PI / sides),
-            };
 
-            pos = vec4q_rotate_v3(rot, pos);
-            *(vptr++) = (VertexInput){
-                .pos = vec3_add(
-                    last_center,
-                    vec3_scale_fl(pos, radius)),
-                .normal = last_grad,
+        Vec3 accln = accln_func(user_data, 1.f);
+        if (!vec3_equality(accln, (Vec3) {0, 0, 0})) {
+            accln = vec3_sub(accln, vec3_scale_fl(last_grad, vec3_dot(accln, last_grad)));
+            if (!(vec3_equality(accln, (Vec3) {0, 0, 0}))) {
+                accln = vec3_normalize(accln);
+            }
+        }
+        if (vec3_equality(accln, (Vec3) {0, 0, 0})) {
+            accln = vptr[-sides].normal;
+        }
+
+        Vec3 perp = vec3_normalize(vec3_cross(accln, last_grad));
+
+        for (int i = 0; i < sides; ++i) {
+
+            float t = i * 2 * M_PI / sides;
+            Vec3 norm = vec3_add(vec3_scale_fl(accln,  cosf(t)), vec3_scale_fl(perp, sinf(t)));
+
+            *(vptr++) = (VertexInput) {
+                    .pos = vec3_add(
+                            last_center,
+                            vec3_scale_fl(norm, radius)),
+                    .normal = last_grad,
             };
         }
     }
 
     //Make the last point
     *(vptr++) =
-        (VertexInput){ .pos = last_center, .normal = last_grad };
+            (VertexInput) {.pos = last_center, .normal = last_grad};
 
     return true;
 }
 
-GenerateModelOutput load_text_character(StackAllocator* stk_allocr,
+GenerateModelOutput load_text_character(StackAllocator *stk_allocr,
                                         size_t stk_offset,
                                         int codepoint, Vec3 extrude) {
-    GenerateModelOutput model = { 0 };
+    GenerateModelOutput model = {0};
 
     init_font_file("Sanskr.ttf");
 
     //Allocate for CurveNode
     struct AddCurveOutput letter_info =
-        add_font_verts(stk_allocr, stk_offset, codepoint);
+            add_font_verts(stk_allocr, stk_offset, codepoint);
 
 
     //Collect shitnodes
-    ProcessNode* shit_nodes =
-        stack_allocate(stk_allocr, &letter_info.stk_offset,
-                       letter_info.total_points * sizeof *shit_nodes,
-                       sizeof *shit_nodes);
+    ProcessNode *shit_nodes =
+            stack_allocate(stk_allocr, &letter_info.stk_offset,
+                           letter_info.total_points * sizeof *shit_nodes,
+                           sizeof *shit_nodes);
 
     // Collect in array
     {
-        ProcessNode* nptr = shit_nodes;
+        ProcessNode *nptr = shit_nodes;
         for (size_t i = 0; i < letter_info.curve_count; ++i) {
-            ProcessNode* ptr_top = nptr;
-            CurveNode* ptr = letter_info.curves[i];
+            ProcessNode *ptr_top = nptr;
+            CurveNode *ptr = letter_info.curves[i];
             do {
                 nptr->point = ptr->point;
                 nptr->flag = 0;
                 nptr->children =
-                    stack_allocate(stk_allocr,
-                                   &letter_info.stk_offset,
-                                   sizeof *nptr->children, 1);
+                        stack_allocate(stk_allocr,
+                                       &letter_info.stk_offset,
+                                       sizeof *nptr->children, 1);
                 nptr->children->next = nptr + 1;
                 nptr->children->prev = nptr - 1;
                 nptr->children->another = NULL;
@@ -487,13 +514,13 @@ GenerateModelOutput load_text_character(StackAllocator* stk_allocr,
     sort_process_curve(shit_nodes, letter_info.total_points);
 
     size_t face_triangle_count =
-        letter_info.total_points + 2 * letter_info.curve_count - 4;
+            letter_info.total_points + 2 * letter_info.curve_count - 4;
 
     //Setup inputs and send
     triangulate_curve(
-        stk_allocr, letter_info.stk_offset, shit_nodes,
-        letter_info.total_points, letter_info.first_point,
-        (Triangle*)letter_info.indices, face_triangle_count);
+            stk_allocr, letter_info.stk_offset, shit_nodes,
+            letter_info.total_points, letter_info.first_point,
+            (Triangle *) letter_info.indices, face_triangle_count);
 
     clear_font_file();
 
@@ -506,50 +533,50 @@ GenerateModelOutput load_text_character(StackAllocator* stk_allocr,
 
     for (size_t i = 0; i < letter_info.curve_count; ++i) {
 
-        CurveNode* head = letter_info.curves[i];
+        CurveNode *head = letter_info.curves[i];
         do {
 
             if (!(head->flag & get_flag(CurveSmooth)) || !(head->next
-                ->flag & get_flag(CurveSmooth))) {
+                                                                   ->flag & get_flag(CurveSmooth))) {
 
-                Vec3 p1 = { .x = head->point->point.x,
-                            .y = head->point->point.y };
-                Vec3 p2 = { .x = head->next->point->point.x,
-                            .y = head->next->point->point.y };
+                Vec3 p1 = {.x = head->point->point.x,
+                        .y = head->point->point.y};
+                Vec3 p2 = {.x = head->next->point->point.x,
+                        .y = head->next->point->point.y};
 
 
                 Vec3 norm =
-                    vec3_normalize(
-                        vec3_cross(vec3_sub(p2, p1), extrude));
+                        vec3_normalize(
+                                vec3_cross(vec3_sub(p2, p1), extrude));
                 Vec3 neg = vec3_scale_fl(norm, -1.f);
 
                 Vec3 half_ex = vec3_scale_fl(extrude, 0.5f);
 
                 letter_info.first_point[vert_start++].vert =
-                    (VertexInput){
-                        .pos = vec3_sub(p1, half_ex),
-                        .normal = neg,
-                    };
+                        (VertexInput) {
+                                .pos = vec3_sub(p1, half_ex),
+                                .normal = neg,
+                        };
 
 
                 letter_info.first_point[vert_start++].vert =
-                    (VertexInput){
-                        .pos = vec3_add(p1, half_ex),
-                        .normal = neg,
-                    };
+                        (VertexInput) {
+                                .pos = vec3_add(p1, half_ex),
+                                .normal = neg,
+                        };
 
                 letter_info.first_point[vert_start++].vert =
-                    (VertexInput){
-                        .pos = vec3_sub(p2, half_ex),
-                        .normal = neg,
-                    };
+                        (VertexInput) {
+                                .pos = vec3_sub(p2, half_ex),
+                                .normal = neg,
+                        };
 
 
                 letter_info.first_point[vert_start++].vert =
-                    (VertexInput){
-                        .pos = vec3_add(p2, half_ex),
-                        .normal = neg,
-                    };
+                        (VertexInput) {
+                                .pos = vec3_add(p2, half_ex),
+                                .normal = neg,
+                        };
 
                 letter_info.indices[inx_start++] = vert_start - 4;
                 letter_info.indices[inx_start++] = vert_start - 2;
@@ -567,52 +594,52 @@ GenerateModelOutput load_text_character(StackAllocator* stk_allocr,
 
                 //Push current point only if start of smooth curve
                 if ((head == letter_info.curves[i]) || (!(head->prev->
-                    flag & get_flag(CurveSmooth)))) {
-                    Vec3 p = { head->point->point.x,
-                               head->point->point.y };
-                    Vec3 n = { head->point->normal.x,
-                               head->point->normal.y };
+                        flag & get_flag(CurveSmooth)))) {
+                    Vec3 p = {head->point->point.x,
+                              head->point->point.y};
+                    Vec3 n = {head->point->normal.x,
+                              head->point->normal.y};
 
                     n = vec3_sub(
-                        n,
-                        vec3_scale_fl(ex_norm, vec3_dot(ex_norm, n)));
+                            n,
+                            vec3_scale_fl(ex_norm, vec3_dot(ex_norm, n)));
                     n = vec3_normalize(n);
 
                     letter_info.first_point[vert_start++].vert =
-                        (VertexInput){
-                            .pos = vec3_sub(p, half_ex),
-                            .normal = n,
-                        };
+                            (VertexInput) {
+                                    .pos = vec3_sub(p, half_ex),
+                                    .normal = n,
+                            };
 
                     letter_info.first_point[vert_start++].vert =
-                        (VertexInput){
-                            .pos = vec3_add(p, half_ex),
-                            .normal = n,
-                        };
+                            (VertexInput) {
+                                    .pos = vec3_add(p, half_ex),
+                                    .normal = n,
+                            };
 
                 }
 
                 //Push next points
-                Vec3 p = { .x = head->next->point->point.x,
-                           .y = head->next->point->point.y };
-                Vec3 n = { head->next->point->normal.x,
-                           head->next->point->normal.y };
+                Vec3 p = {.x = head->next->point->point.x,
+                        .y = head->next->point->point.y};
+                Vec3 n = {head->next->point->normal.x,
+                          head->next->point->normal.y};
 
                 n = vec3_sub(
-                    n, vec3_scale_fl(ex_norm, vec3_dot(ex_norm, n)));
+                        n, vec3_scale_fl(ex_norm, vec3_dot(ex_norm, n)));
                 n = vec3_normalize(n);
 
                 letter_info.first_point[vert_start++].vert =
-                    (VertexInput){
-                        .pos = vec3_sub(p, half_ex),
-                        .normal = n,
-                    };
+                        (VertexInput) {
+                                .pos = vec3_sub(p, half_ex),
+                                .normal = n,
+                        };
 
                 letter_info.first_point[vert_start++].vert =
-                    (VertexInput){
-                        .pos = vec3_add(p, half_ex),
-                        .normal = n,
-                    };
+                        (VertexInput) {
+                                .pos = vec3_add(p, half_ex),
+                                .normal = n,
+                        };
 
 
                 letter_info.indices[inx_start++] = vert_start - 4;
@@ -632,22 +659,22 @@ GenerateModelOutput load_text_character(StackAllocator* stk_allocr,
     //Later also maintain order of vertices, if needed
     //Also maintain normal direction properly
     for (size_t i = 0; i < letter_info.total_points; ++i) {
-        letter_info.first_point[i].vert.pos = (Vec3){
-            .x =
-            -extrude.x * 0.5f + letter_info.first_point[i].point.x,
-            .y =
-            -extrude.y * 0.5f + letter_info.first_point[i].point.y,
-            .z = -extrude.z * 0.5f,
+        letter_info.first_point[i].vert.pos = (Vec3) {
+                .x =
+                -extrude.x * 0.5f + letter_info.first_point[i].point.x,
+                .y =
+                -extrude.y * 0.5f + letter_info.first_point[i].point.y,
+                .z = -extrude.z * 0.5f,
         };
-        letter_info.first_point[i].vert.normal = (Vec3){
-            .x = letter_info.first_point[i].normal.x,
-            .y = letter_info.first_point[i].normal.y,
-            .z = 0.f,
+        letter_info.first_point[i].vert.normal = (Vec3) {
+                .x = letter_info.first_point[i].normal.x,
+                .y = letter_info.first_point[i].normal.y,
+                .z = 0.f,
         };
 
         letter_info.first_point[i].vert.normal =
-            vec3_scale_fl(vec3_normalize(extrude), -1.f);
-        letter_info.first_point[i].vert.uv = (Vec2){ 0.f, 0.f };
+                vec3_scale_fl(vec3_normalize(extrude), -1.f);
+        letter_info.first_point[i].vert.uv = (Vec2) {0.f, 0.f};
     }
 
 
@@ -660,11 +687,11 @@ GenerateModelOutput load_text_character(StackAllocator* stk_allocr,
     for (size_t i = letter_info.total_points;
          i < letter_info.total_points * 2; ++i) {
         letter_info.first_point[i].vert.pos =
-            vec3_add(letter_info.first_point[i].vert.pos, extrude);
-        letter_info.first_point[i].vert.uv = (Vec2){ 0.f, 0.f };
+                vec3_add(letter_info.first_point[i].vert.pos, extrude);
+        letter_info.first_point[i].vert.uv = (Vec2) {0.f, 0.f};
 
         letter_info.first_point[i].vert.normal =
-            vec3_scale_fl(vec3_normalize(extrude), 1.f);
+                vec3_scale_fl(vec3_normalize(extrude), 1.f);
 
     }
     //Rewrite the indices
@@ -672,13 +699,13 @@ GenerateModelOutput load_text_character(StackAllocator* stk_allocr,
     //Offset the added indices, and flip two at a time
     for (size_t i = 3 * face_triangle_count;
          i < 2 * 3 * face_triangle_count; i += 3
-    ) {
+            ) {
         letter_info.indices[i] = letter_info.total_points +
-            letter_info.indices[i - 3 * face_triangle_count];
+                                 letter_info.indices[i - 3 * face_triangle_count];
         letter_info.indices[i + 2] = letter_info.total_points +
-            letter_info.indices[i + 1 - 3 * face_triangle_count];
+                                     letter_info.indices[i + 1 - 3 * face_triangle_count];
         letter_info.indices[i + 1] = letter_info.total_points +
-            letter_info.indices[i + 2 - 3 * face_triangle_count];
+                                     letter_info.indices[i + 2 - 3 * face_triangle_count];
 
 
     }
