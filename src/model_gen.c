@@ -332,19 +332,6 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
     if (!model.vert_buffer.mapped_memory)
         return false;
 
-    Vec4 q1 = vec4q_from_rot_vf((Vec3) {.z = 1.f}, M_PI / 2.f);
-    Vec3 p1 = {.x = 1.f};
-    Vec3 p2 = {.x = 2.f};
-    Vec3 p3 = {.x = 3.f};
-    Vec3 p4 = {.y = 1.f};
-    Vec3 p5 = {.y = 1.f};
-    Vec3 p6 = {.x = 1.f, .y = 1.f};
-    p1 = vec4q_rotate_v3(q1, p1);
-    p2 = vec4q_rotate_v3(q1, p2);
-    p3 = vec4q_rotate_v3(q1, p3);
-    p4 = vec4q_rotate_v3(q1, p4);
-    p5 = vec4q_rotate_v3(q1, p5);
-    p6 = vec4q_rotate_v3(q1, p6);
 
 
     VertexInput *vptr =
@@ -373,6 +360,8 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
             accln = (Vec3){1.f,0.f,0.f};
         }
 
+        accln = vec3_orthogonal(first_derv);
+
         Vec3 perp = vec3_normalize(vec3_cross(accln, first_derv));
 
         for (int i = 0; i < sides; ++i) {
@@ -396,6 +385,7 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
                 vec3_normalize(grad_func(user_data, j * 1.f / divs));
 
         Vec3 accln = accln_func(user_data, j * 1.f / divs);
+        //accln = (Vec3){0.f,0.f,0.f};
         if (!vec3_equality(accln, (Vec3) {0, 0, 0})) {
             accln = vec3_sub(accln, vec3_scale_fl(grad, vec3_dot(accln, grad)));
             if (!(vec3_equality(accln, (Vec3) {0, 0, 0}))) {
@@ -406,7 +396,19 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
             accln = vptr[-sides].normal;
         }
 
+        accln = vec3_sub(vptr[-sides].normal, vec3_scale_fl(grad, vec3_dot(grad, vptr[-sides].normal)));
+        accln = vec3_normalize(accln);
+        if(j == 0){
+            accln = vec3_orthogonal(grad);
+        }
+
         Vec3 perp = vec3_normalize(vec3_cross(accln, grad));
+
+        //perp = vec3_normalize(vec3_cross(vptr[-sides].normal,grad));
+
+
+        //accln = vec3_normalize(vec3_cross(grad, perp));
+
 
         for (int i = 0; i < sides; ++i) {
 
@@ -431,6 +433,7 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
     {
 
         Vec3 accln = accln_func(user_data, 1.f);
+        //accln = (Vec3){0.f,0.f,0.f};
         if (!vec3_equality(accln, (Vec3) {0, 0, 0})) {
             accln = vec3_sub(accln, vec3_scale_fl(last_grad, vec3_dot(accln, last_grad)));
             if (!(vec3_equality(accln, (Vec3) {0, 0, 0}))) {

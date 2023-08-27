@@ -1299,23 +1299,31 @@ int main(int argc, char *argv[]) {
             .scale = {0.7f, 0.7f, 0.7f},
             .color = {1.f, 1.f, 1.f},
     };
-    //Push grad and accln splines
+    //Push grad and accln splines and jerk
     object_solid_mode[obj_count] = true;
     scene_objs[obj_count++] = (struct Object3D) {
             .ptr_model = &cube_model,
-            .scale = {0.4f, 0.4f, 0.4f},
+            .scale = {0.3f, 0.3f, 0.3f},
             .color = {0.f, 1.f, 0.f},
     };
     object_solid_mode[obj_count] = true;
     scene_objs[obj_count++] = (struct Object3D) {
             .ptr_model = &cube_model,
-            .scale = {0.4f, 0.4f, 0.4f},
+            .scale = {0.3f, 0.3f, 0.3f},
             .color = {0.f, 0.f, 1.f},
     };
+    object_solid_mode[obj_count] = true;
+    scene_objs[obj_count++] = (struct Object3D) {
+            .ptr_model = &cube_model,
+            .scale = {0.3f, 0.3f, 0.3f},
+            .color = {0.f, 0.f, 1.f},
+    };
+
     float spline_t = 0.f;
     bool go_back = false;
-    float grad_len_scale = 0.05f;
-    float accln_len_scale = 0.01f;
+    float grad_len_scale = 0.08f;
+    float accln_len_scale = 0.04f;
+    float jerk_len_scale = 0.04f;
     float animate_spline_speed = 0.f;
 
     active_obj = 0;
@@ -1395,6 +1403,9 @@ int main(int argc, char *argv[]) {
                 pointer_obj[2].translate = vec3_add(pointer_obj[0].translate,
                                                    vec3_scale_fl(cubic_bezier_acc_func(arr, spline_t),
                                                                  accln_len_scale));
+                pointer_obj[3].translate = vec3_add(pointer_obj[0].translate,
+                                                   vec3_scale_fl(cubic_bezier_jerk_func(arr, spline_t),
+                                                                 jerk_len_scale));
             }
 
             bool true_val = true;

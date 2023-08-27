@@ -88,6 +88,15 @@ static inline Vec3  cubic_bezier_acc_func(Vec3  vecs[4], float t){
                       vec3_scale_fl(vecs[3], 6 * t));
 }
 
+static inline Vec3  cubic_bezier_jerk_func(Vec3  vecs[4], float t){
+    return vec3_add_4(vec3_scale_fl(vecs[0], -6),
+                      vec3_scale_fl(vecs[1], 18),
+                      vec3_scale_fl(vecs[2], -18),
+                      vec3_scale_fl(vecs[3], 6));
+}
+
+
+
 static inline Vec3  ellipse_pos_func(Vec3  vecs[3], float t){
     Vec3  right = vec3_sub(vecs[1] , vecs[0]);
     Vec3  up = vec3_sub(vecs[2],vecs[0]);
