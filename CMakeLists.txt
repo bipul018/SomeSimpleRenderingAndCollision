@@ -35,12 +35,14 @@ set_source_files_properties(shaders/demo0.vert.hlsl PROPERTIES ShaderType "vs")
 set_source_files_properties(shaders/demo0.frag.hlsl PROPERTIES ShaderType "ps")
 set_source_files_properties(${HLSL_SHADER_FILES} PROPERTIES ShaderModel "6_0")
 
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+
 foreach (FILE ${HLSL_SHADER_FILES})
     get_filename_component(FILE_WE ${FILE} NAME_WE)
     get_source_file_property(shadertype ${FILE} ShaderType)
     get_source_file_property(shadermodel ${FILE} ShaderModel)
     add_custom_command(TARGET shaders
-            COMMAND D:\\prgming\\VulkanSDK\\1.3.231.1\\Bin\\dxc.exe -spirv /nologo /Emain /T${shadertype}_${shadermodel} $<IF:$<CONFIG:DEBUG>,/Od,/O1> /Zi /Fo ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}.${shadertype} ${CMAKE_BINARY_DIR}/${FILE_WE}.pdb ${FILE}
+            COMMAND D:\\prgming\\VulkanSDK\\1.3.231.1\\Bin\\dxc.exe -spirv /nologo /Emain /T${shadertype}_${shadermodel} $<IF:$<CONFIG:DEBUG>,/Od,/O1> /Zi -Fo ${CMAKE_CURRENT_BINARY_DIR}/shaders/${FILE_WE}.${shadertype} ${FILE}
             MAIN_DEPENDENCY ${FILE}
             COMMENT "HLSL ${FILE}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

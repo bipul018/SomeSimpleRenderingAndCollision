@@ -808,8 +808,12 @@ LRESULT CALLBACK wnd_proc(HWND h_wnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
     return DefWindowProc(h_wnd, msg, wparam, lparam);
 }
+struct Guu{
+    int ko;
+};
 
 int main(int argc, char *argv[]) {
+
 
     enum MainFailCodes {
         MAIN_FAIL_ALL = -0x7fff,
@@ -1665,6 +1669,7 @@ int main(int argc, char *argv[]) {
 
                 des_lights.light_col = vec4_from_vec3(light_col, 1.0f);
                 des_lights.light_src = vec4_from_vec3(light_pos, 1.f);
+                des_lights.view_pos = vec4_from_vec3(cam_translate,1.0f);
 
                 *(struct DescriptorMats *) (g_matrix_uniform_buffers[curr_frame_in_flight]
                         .mapped_memory) = des_mats;

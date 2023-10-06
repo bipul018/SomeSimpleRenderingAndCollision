@@ -20,6 +20,7 @@ struct LightSource
 {
     float4 source_location;
     float4 source_color;
+    float4 view_pos;
 };
 
 [[vk::push_constant]] PushConst push_data;
@@ -28,25 +29,41 @@ ConstantBuffer<LightSource> ubo_data : register(b0, space1);
 
 PSOutput main(PSInput input)
 {
-    
     PSOutput output;
-    float4 diff = ubo_data.source_location - input.world_pos;
-    float len = length(diff);
-    diff = diff / (len*len*0.001  + len  );
-    //printf("%f ", len);
-    
-    float prod = dot(diff,
-                     normalize(input.Normal));
-    
-    
-    output.Color = mul(ubo_data.source_color, prod);
-    
-    output.Color = max(float4(0.f, 0.f, 0.f, 1.f),
-                        output.Color) + float4(0.4f, 0.1f, 0.1f, 0.f);
-    
-    //printf("Light : %f %f %f %f\tColor : %f %f %f %f\t", ubo_data.source_location.x, ubo_data.source_location.y, ubo_data.source_location.z, ubo_data.source_location.w, ubo_data.source_color.x, ubo_data.source_color.y, ubo_data.source_color.z, ubo_data.source_color.w);
-    //printf("Model : %f %f %f %f\tColor : %f %f %f %f\t", push_data.model_color.x, push_data.model_color.y, push_data.model_color.z, push_data.model_color.w, output.Color.x, output.Color.y, output.Color.z, output.Color.w);
-    output.Color = output.Color * push_data.model_color;
-    
+
+    input.Normal = normalize(input.Normal);
+
+    float4 light = ubo_data.source_location - input.world_pos;
+
+    //This is inverse of required f(d)
+    float atten_fac = length(light) * 0.0005f;
+    atten_fac = 1.0f / (atten_fac*atten_fac  + atten_fac + 1);
+
+    light = normalize(light);
+
+    float4 ambient = float4(0.1f, 0.1f, 0.1f, 1.0f);
+
+
+
+    float4 view = normalize(ubo_data.view_pos-input.world_pos);
+
+    float diff_fac = dot(input.Normal, light);
+
+    float4 half_vec = normalize(light + view);
+    float spec_fac = pow(clamp(dot(input.Normal,half_vec),0.f,1.f), 50);
+
+    output.Color = ambient +atten_fac*
+                max(0.f,
+                    min(1.f,diff_fac )) *
+                ubo_data.source_color;
+
+    //printf("%f %f %f %f \n",half_vec.x ,half_vec.y, half_vec.z, half_vec.w);
+    //printf("%f\t",spec_fac);
+
+    output.Color = output.Color * push_data.model_color+
+    atten_fac*spec_fac*ubo_data.source_color;
+
+    output.Color.w = 1.0f;
+
     return output;
 }

@@ -35,6 +35,21 @@ static inline Vec3 lerp_acc_func(Vec3 vecs[2], float t){
 
 typedef Vec3 (Vec3ParaFunc)(void * user_data, float t);
 
+
+//Tube data
+struct Extrudable{
+    size_t front_face_vert_count;
+    size_t back_face_vert_count;
+    size_t side_vert_count;
+    size_t front_face_inx_count;
+    size_t back_face_inx_count;
+    size_t max_extrude_steps;
+    size_t curr_extrude_steps;
+    struct Model *model;
+    //Untransformed original side vertices, should remain alive till destruction of Extrudable
+    VertexInput * original_side_verts;
+};
+
 bool remodel_verts_tube(struct Model model, int sides, int divs, float radius, Vec3ParaFunc pos_func , Vec3ParaFunc grad_func , Vec3ParaFunc accn_func, void * user_data);
 
 static inline Vec3 quad_bezier_pos_func(Vec3 vecs[3], float t) {
@@ -44,6 +59,7 @@ static inline Vec3 quad_bezier_pos_func(Vec3 vecs[3], float t) {
                       vec3_scale_fl(vecs[1], 2 * s * t),
                       vec3_scale_fl(vecs[2], t * t));
 }
+
 
 
 static inline Vec3 quad_bezier_grad_func(Vec3 vecs[3], float t) {

@@ -81,6 +81,7 @@ struct DescriptorMats {
 struct DescriptorLight {
     Vec4 light_src;
     Vec4 light_col;
+    Vec4 view_pos;
 };
 
 static inline int create_descriptor_layouts(
@@ -420,8 +421,8 @@ static const VkPushConstantRange push_ranges[] = {
 
 static const size_t push_range_count = COUNT_OF(push_ranges);
 
-static const char* vert_file_name = "demo0.vs";
-static const char* frag_file_name = "demo0.ps";
+static const char* vert_file_name = "shaders/demo0.vs";
+static const char* frag_file_name = "shaders/demo0.ps";
 
 typedef uint16_t IndexInput;
 
