@@ -316,8 +316,9 @@ int choose_swapchain_details(StackAllocator* stk_allocr,
         // Choose present mode
         *(param.p_present_mode) = VK_PRESENT_MODE_FIFO_KHR;
         for (uint32_t i = 0; i < present_modes_count; ++i) {
+            //if(present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR)
             if (present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
-                *(param.p_present_mode) = VK_PRESENT_MODE_MAILBOX_KHR;
+                *(param.p_present_mode) = present_modes[i];
         }
     }
 

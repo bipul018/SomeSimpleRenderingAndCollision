@@ -1,12 +1,6 @@
 #pragma once
 #include "window-stuff.h"
 
-enum CreateRenderPassCodes {
-    CREATE_RENDER_PASS_FAILED = -0x7fff,
-
-    CREATE_RENDER_PASS_OK = 0,
-};
-
 typedef struct {
     VkDevice device;
     VkFormat img_format;
@@ -67,13 +61,6 @@ typedef struct GraphicsPipelineCreationInfos
 GraphicsPipelineCreationInfos
 default_graphics_pipeline_creation_infos(void);
 
-enum CreateGraphicsPipeline {
-    CREATE_GRAPHICS_PIPELINE_FAILED = -0x7fff,
-
-    CREATE_GRAPHICS_PIPELINE_SHADER_MODULES_CREATION_FAILED,
-    CREATE_GRAPHICS_PIPELINE_OK = 0,
-};
-
 typedef struct {
     VkDevice device;
     GraphicsPipelineCreationInfos create_infos;
@@ -106,7 +93,6 @@ enum CreateSemaphoresCodes {
     CREATE_SEMAPHORES_ALLOC_FAIL,
     CREATE_SEMAPHORES_OK = 0,
 };
-
 typedef struct {
     uint32_t semaphores_count;
     VkDevice device;
@@ -126,6 +112,7 @@ typedef struct {
 
 void clear_semaphores(const VkAllocationCallbacks *alloc_callbacks,
                       ClearSemaphoresParam param, int err_codes);
+
 
 enum CreateFencesCodes {
     CREATE_FENCES_FAILED = -0x7fff,
@@ -152,12 +139,6 @@ typedef struct {
 
 void clear_fences(const VkAllocationCallbacks *alloc_callbacks,
                   ClearFencesParam param, int err_codes);
-
-enum CreatePrimaryCommandBuffersCodes {
-    CREATE_PRIMARY_COMMAND_BUFFERS_FAILED = -0x7fff,
-    CREATE_PRIMARY_COMMAND_BUFFERS_ALLOC_FAILED,
-    CREATE_PRIMARY_COMMAND_BUFFERS_OK = 0,
-};
 
 typedef struct {
     VkDevice device;

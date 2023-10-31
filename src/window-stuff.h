@@ -4,17 +4,14 @@
 struct SwapchainEntities {
     VkSwapchainKHR swapchain;
 
-    //This is to denote the lifespan left of swapchain
-    //Each flag denotes that img is alive
-    //If img_count>=64, don't ever reset that bit from outside {extreme case condiiton}
-    uint64_t swapchain_life;
-
     uint32_t img_count;
     // All following have this img_count elements if successfully
     // created
 
     VkImage *images;
     VkImageView *img_views;
+    //Properly record all images status from these fences
+    VkFence *img_fences;
 
     VkDeviceMemory device_mem;
     VkImage *depth_imgs;
@@ -23,24 +20,6 @@ struct SwapchainEntities {
     VkFramebuffer *framebuffers;
 };
 
-enum CreateSwapchainCodes {
-    CREATE_SWAPCHAIN_TOP_FAIL_CODE = -0x7fff,
-    CREATE_SWAPCHAIN_DEPTH_IMAGE_VIEW_CREATE_FAIL,
-    CREATE_SWAPCHAIN_DEPTH_IMAGE_VIEW_ALLOC_FAIL,
-    CREATE_SWAPCHAIN_DEPTH_IMAGE_DEVICE_MEM_ALLOC_FAIL,
-    CREATE_SWAPCHAIN_DEPTH_IMAGE_CREATE_FAIL,
-    CREATE_SWAPCHAIN_DEPTH_IMAGE_ALLOC_FAIL,
-    CREATE_SWAPCHAIN_IMAGE_VIEW_CREATE_FAIL,
-    CREATE_SWAPCHAIN_IMAGE_VIEW_ALLOC_FAIL,
-    CREATE_SWAPCHAIN_IMAGE_ALLOC_FAIL,
-    CREATE_SWAPCHAIN_IMAGE_LOAD_FAIL,
-    CREATE_SWAPCHAIN_FAILED,
-    CREATE_SWAPCHAIN_ZERO_SURFACE_SIZE,
-    CREATE_SWAPCHAIN_CHOOSE_DETAILS_FAIL,
-    CREATE_SWAPCHAIN_OK = 0,
-    CREATE_SWAPCHAIN_SURFACE_FORMAT_CHANGED,
-    CREATE_SWAPCHAIN_MIN_IMG_COUNT_CHANGED,
-};
 
 typedef struct {
     struct VulkanDevice device;
@@ -123,13 +102,6 @@ typedef struct {
 } ClearFramebuffersParam;
 void clear_framebuffers(const VkAllocationCallbacks *alloc_callbacks,
                         ClearFramebuffersParam param, int err_codes);
-
-enum RecreateSwapchainCodes {
-    RECREATE_SWAPCHAIN_CREATE_SWAPCHAIN_ERR = -0x7fff,
-    RECREATE_SWAPCHAIN_CREATE_FRAMEBUFFER_ERR,
-    RECREATE_SWAPCHAIN_CHANGE_RENDERPASS_ERR,
-    RECREATE_SWAPCHAIN_OK = 0,
-};
 
 typedef struct {
     struct VulkanDevice device;

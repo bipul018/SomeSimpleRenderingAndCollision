@@ -413,7 +413,7 @@ VEC_API Mat4 mat4_translate_3(float tx, float ty, float tz) {
                      { tx, ty, tz, 1.f } } };
 }
 
-//Linearly Maps world min, world max to -1,-1,0 to 1,1,1
+//Linearly Maps world _min, world _max to -1,-1,0 to 1,1,1
 VEC_API Mat4 mat4_orthographic(Vec3 world_min, Vec3 world_max) {
 
     Vec4 min = { world_min.x, world_min.y, world_min.z };

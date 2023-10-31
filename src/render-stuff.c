@@ -2,6 +2,12 @@
 #include <stdio.h>
 #include <string.h>
 
+enum CreateRenderPassCodes {
+    CREATE_RENDER_PASS_FAILED = -0x7fff,
+
+    CREATE_RENDER_PASS_OK = 0,
+};
+
 int create_render_pass(StackAllocator* stk_allocr, size_t stk_offset,
                        const VkAllocationCallbacks* alloc_callbacks,
                        CreateRenderPassParam param) {
@@ -276,6 +282,13 @@ default_graphics_pipeline_creation_infos() {
     return infos;
 }
 
+enum CreateGraphicsPipeline {
+    CREATE_GRAPHICS_PIPELINE_FAILED = -0x7fff,
+
+    CREATE_GRAPHICS_PIPELINE_SHADER_MODULES_CREATION_FAILED,
+    CREATE_GRAPHICS_PIPELINE_OK = 0,
+};
+
 int create_graphics_pipeline(StackAllocator* stk_allocr,
                              size_t stk_offset,
                              VkAllocationCallbacks* alloc_callbacks,
@@ -404,6 +417,7 @@ void clear_graphics_pipeline(
     }
 }
 
+
 int create_semaphores(StackAllocator* stk_allocr, size_t stk_offset,
                       const VkAllocationCallbacks* alloc_callbacks,
                       CreateSemaphoresParam param) {
@@ -518,6 +532,12 @@ void clear_fences(const VkAllocationCallbacks* alloc_callbacks,
     }
 }
 
+enum CreatePrimaryCommandBuffersCodes {
+    CREATE_PRIMARY_COMMAND_BUFFERS_FAILED = -0x7fff,
+    CREATE_PRIMARY_COMMAND_BUFFERS_ALLOC_FAILED,
+    CREATE_PRIMARY_COMMAND_BUFFERS_OK = 0,
+};
+
 int create_primary_command_buffers(StackAllocator* stk_allocr,
                                    size_t stk_offset,
                                    VkAllocationCallbacks*
@@ -578,7 +598,7 @@ int begin_rendering_operations(BeginRenderingOperationsParam param) {
     //Skip drawing for minimize before acuiring
     if (!param.framebuffer_render_extent.width || !param.framebuffer_render_extent.height)
         return BEGIN_RENDERING_OPERATIONS_MINIMIZED;
-    
+
 
     result = vkAcquireNextImageKHR(
         param.device, param.swapchain, UINT64_MAX,

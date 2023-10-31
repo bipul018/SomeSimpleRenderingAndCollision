@@ -385,7 +385,7 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
                 vec3_normalize(grad_func(user_data, j * 1.f / divs));
 
         Vec3 accln = accln_func(user_data, j * 1.f / divs);
-        //accln = (Vec3){0.f,0.f,0.f};
+        //force = (Vec3){0.f,0.f,0.f};
         if (!vec3_equality(accln, (Vec3) {0, 0, 0})) {
             accln = vec3_sub(accln, vec3_scale_fl(grad, vec3_dot(accln, grad)));
             if (!(vec3_equality(accln, (Vec3) {0, 0, 0}))) {
@@ -407,7 +407,7 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
         //perp = vec3_normalize(vec3_cross(vptr[-sides].normal,grad));
 
 
-        //accln = vec3_normalize(vec3_cross(grad, perp));
+        //force = vec3_normalize(vec3_cross(grad, perp));
 
 
         for (int i = 0; i < sides; ++i) {
@@ -433,7 +433,7 @@ bool remodel_verts_tube(struct Model model, int sides, int divs,
     {
 
         Vec3 accln = accln_func(user_data, 1.f);
-        //accln = (Vec3){0.f,0.f,0.f};
+        //force = (Vec3){0.f,0.f,0.f};
         if (!vec3_equality(accln, (Vec3) {0, 0, 0})) {
             accln = vec3_sub(accln, vec3_scale_fl(last_grad, vec3_dot(accln, last_grad)));
             if (!(vec3_equality(accln, (Vec3) {0, 0, 0}))) {

@@ -22,6 +22,11 @@
 #include "imgui/imgui/imgui_impl_vulkan.h"
 #include "imgui/imgui/imgui_impl_win32.h"
 #include "main.h"
+#include "LooplessSizeMove.h"
+#include "collides.h"
+
+#include <extra_c_macros.h>
+#include <extra_c_helper_fxns.h>
 
 
 int ImGui_ImplWin32_CreateVkSurface(ImGuiViewport *viewport, ImU64 vk_instance,
@@ -676,6 +681,7 @@ struct WinProcData {
     int char_codepoint;
 };
 
+timespec nctimer;
 
 LRESULT CALLBACK wnd_proc(HWND h_wnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
@@ -709,12 +715,6 @@ LRESULT CALLBACK wnd_proc(HWND h_wnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
         if (msg == WM_PAINT) {
 
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(h_wnd, &ps);
-
-            // Rectangle(hdc, 10, 10, 300, 300);
-
-            EndPaint(h_wnd, &ps);
         }
         if (msg == WM_TIMER) {
             if (wparam == pdata->timer_id) {
@@ -727,7 +727,18 @@ LRESULT CALLBACK wnd_proc(HWND h_wnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             GetClientRect(h_wnd, &client_area);
             pdata->width = client_area.right;
             pdata->height = client_area.bottom;
-            // recreate_swapchain(pdata);
+            //recreate_swapchain(pdata);
+            return 1;
+        }
+        if(msg == WM_MOVE){
+        }
+        if(msg == WM_WINDOWPOSCHANGED ){
+        }
+        if(msg == WM_SIZING){
+            return TRUE;
+        }
+        if(msg == WM_NCLBUTTONDOWN){
+            //return 1;
         }
 
         if (!pdata->init_success)
@@ -806,11 +817,10 @@ LRESULT CALLBACK wnd_proc(HWND h_wnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         }
     }
 
-    return DefWindowProc(h_wnd, msg, wparam, lparam);
+    return LSMProc(h_wnd,msg,wparam,lparam);
+    //return DefWindowProc(h_wnd, msg, wparam, lparam);
 }
-struct Guu{
-    int ko;
-};
+
 
 int main(int argc, char *argv[]) {
 
@@ -866,7 +876,7 @@ int main(int argc, char *argv[]) {
                                 &depth_img_format, &min_surface_img_count, &init_global_err_code);
 
 
-    // Determine the max frames in flight
+    // Determine the _max frames in flight
     size_t max_frames_in_flight = 3;
     size_t curr_frame_in_flight = 0;
 
@@ -1158,16 +1168,10 @@ int main(int argc, char *argv[]) {
     struct Model ground_model = {0};
     struct Model sphere_model = {0};
     struct Model cube_model = {0};
-    struct Model sample_tube = {0};
-    struct Model sample_grad = {0};
-    struct Model sample_accl = {0};
-    const int tube_sides = 6;
-    const int tube_divs = 20;
-    float tube_radius = 10.f;
 
     {
         GenerateModelOutput out;
-        out = load_cuboid_aa(&stk_allocr, stk_offset, (Vec3) {1000.f, 0.f, 1000.f});
+        out = load_cuboid_aa(&stk_allocr, stk_offset, (Vec3) {20000.f, 0.f, 20000.f});
         if (!out.vertices || !out.indices) return_main_fail(MAIN_FAIL_MODEL_LOAD);
 
         if (create_model(ptr_alloc_callbacks,
@@ -1209,46 +1213,7 @@ int main(int argc, char *argv[]) {
                          },
                          &sphere_model) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
 
-        out = load_tube_solid(&stk_allocr, stk_offset, tube_sides, tube_divs);
 
-        if (create_model(ptr_alloc_callbacks,
-                         (CreateModelParam) {
-                                 .device = device.device,
-                                 .p_allocr = &gpu_mem_allocr,
-                                 .index_count = out.index_count,
-                                 .indices_list = out.indices,
-                                 .vertex_count = out.vertex_count,
-                                 .vertices_list = out.vertices,
-                         },
-                         &sample_tube) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
-        if (!out.vertices || !out.indices) return_main_fail(MAIN_FAIL_MODEL_LOAD);
-
-        out = load_tube_solid(&stk_allocr, stk_offset, 4, 2);
-
-        if (create_model(ptr_alloc_callbacks,
-                         (CreateModelParam) {
-                                 .device = device.device,
-                                 .p_allocr = &gpu_mem_allocr,
-                                 .index_count = out.index_count,
-                                 .indices_list = out.indices,
-                                 .vertex_count = out.vertex_count,
-                                 .vertices_list = out.vertices,
-                         },
-                         &sample_grad) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
-        if (!out.vertices || !out.indices) return_main_fail(MAIN_FAIL_MODEL_LOAD);
-        out = load_tube_solid(&stk_allocr, stk_offset, 4, 2);
-
-        if (create_model(ptr_alloc_callbacks,
-                         (CreateModelParam) {
-                                 .device = device.device,
-                                 .p_allocr = &gpu_mem_allocr,
-                                 .index_count = out.index_count,
-                                 .indices_list = out.indices,
-                                 .vertex_count = out.vertex_count,
-                                 .vertices_list = out.vertices,
-                         },
-                         &sample_accl) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
-        if (!out.vertices || !out.indices) return_main_fail(MAIN_FAIL_MODEL_LOAD);
     }
 
     // Miscellaneous data + object data
@@ -1256,85 +1221,56 @@ int main(int argc, char *argv[]) {
             .ptr_model = &ground_model,
             .translate = (Vec3) {0.f, 300.f, 0.f},
             .rotate = (Vec3) {0},
-            .scale = (Vec3) {10.f, 1.f, 10.f},
+            .scale = (Vec3) {1.f, 1.f, 1.f},
             .color = (Vec3) {0.4f, 0.8f, 0.2f},
     };
-    struct Object3D scene_objs[100];
-    bool object_solid_mode[100] = {0};
+    enum {
+        SCENE_MAX_OBJ = 100,
+    };
+    struct Object3D scene_objs[SCENE_MAX_OBJ];
+    bool object_solid_mode[SCENE_MAX_OBJ] = {0};
+    Vec3 velocities[SCENE_MAX_OBJ] = {0};
+    Vec3 accelerations[SCENE_MAX_OBJ] = {0};
+    float masses[SCENE_MAX_OBJ] = {0};
+    Collidable coll_objs[SCENE_MAX_OBJ + 1] = {0};
+
+
+    for_range(i, 0, SCENE_MAX_OBJ) {
+        masses[i] = -1.f;
+    }
+
     int obj_count = 0;
     int active_obj = -1;
-    struct CharacterModel *charac_models = NULL;
 
-    //Push 4 scene_objs as spheres
-    struct Object3D *base_vertices_obj = scene_objs + obj_count;
-    scene_objs[obj_count++] = (struct Object3D) {
-            .ptr_model = &sphere_model,
-            .scale = {0.5f, 0.5f, 0.5f},
-            .translate = {0, 80},
-    };
-    scene_objs[obj_count++] = (struct Object3D) {
-            .ptr_model = &sphere_model,
-            .scale = {0.5f, 0.5f, 0.5f},
-            .translate = {500, 80},
-    };
-    scene_objs[obj_count++] = (struct Object3D) {
-            .ptr_model = &sphere_model,
-            .scale = {0.5f, 0.5f, 0.5f},
-            .translate = {0, 500}
-    };
-    scene_objs[obj_count++] = (struct Object3D) {
-            .ptr_model = &sphere_model,
-            .scale = {0.5f, 0.5f, 0.5f},
-            .translate = {100, 500}
-    };
-    struct Object3D *spline_obj = scene_objs + obj_count;
-    //Push spline object
-    object_solid_mode[obj_count] = true;
-    scene_objs[obj_count++] = (struct Object3D) {
-            .ptr_model = &sample_tube,
-            .scale = {1.f, 1.f, 1.f},
-            .color = {1.f, 0.f, 0.f},
-    };
-    struct Object3D *pointer_obj = scene_objs + obj_count;
-    //Push center object
-    object_solid_mode[obj_count] = true;
-    scene_objs[obj_count++] = (struct Object3D) {
-            .ptr_model = &cube_model,
-            .scale = {0.7f, 0.7f, 0.7f},
-            .color = {1.f, 1.f, 1.f},
-    };
-    //Push grad and accln splines and jerk
-    object_solid_mode[obj_count] = true;
-    scene_objs[obj_count++] = (struct Object3D) {
-            .ptr_model = &cube_model,
-            .scale = {0.3f, 0.3f, 0.3f},
-            .color = {0.f, 1.f, 0.f},
-    };
-    object_solid_mode[obj_count] = true;
-    scene_objs[obj_count++] = (struct Object3D) {
-            .ptr_model = &cube_model,
-            .scale = {0.3f, 0.3f, 0.3f},
-            .color = {0.f, 0.f, 1.f},
-    };
-    object_solid_mode[obj_count] = true;
-    scene_objs[obj_count++] = (struct Object3D) {
-            .ptr_model = &cube_model,
-            .scale = {0.3f, 0.3f, 0.3f},
-            .color = {0.f, 0.f, 1.f},
-    };
+    float animation_step = 0.001f;
+    float animation_factor = 1.f;
+    bool do_animate = false;
+    double residual_time = 0.f;
+    //Timer and timer info
+    double time_samples[25] = {0};
+    double freq_samples[65] = {0};
+    int curr_time_sample = 0;
+    int curr_freq_sample = 0;
+    timespec frame_timer;
+    frame_timer = start_monotonic_timer();
+    double curr_frame_time = 0.0;
+    double curr_frame_freq = 0.0;
+    double inst_time;
+    double inst_freq;
 
-    float spline_t = 0.f;
-    bool go_back = false;
-    float grad_len_scale = 0.08f;
-    float accln_len_scale = 0.04f;
-    float jerk_len_scale = 0.04f;
-    float animate_spline_speed = 0.f;
+    //vkResetFences(device.device,curr_swapchain_data.img_count,curr_swapchain_data.img_fences);
+    //for(int i = 0; i <= (curr_swapchain_data.img_count- min_surface_img_count); ++i){
+    //    uint32_t x;
+    //    VkResult res = vkAcquireNextImageKHR(device.device,curr_swapchain_data.swapchain,UINT64_MAX,nullptr,curr_swapchain_data.img_fences[i],&x);
+    //    int j = 93;
+    //}
+
 
     active_obj = 0;
 
 
-    Vec3 world_min = {-300, -300, -1500};
-    Vec3 world_max = {300, 300, 1500};
+    Vec3 world_min = {-300, -300, -1800};
+    Vec3 world_max = {300, 300, 1800};
     float fov = M_PI / 3.f;
 
     Vec3 cam_scale = {1.f, 1.f, 1.f};
@@ -1360,14 +1296,16 @@ int main(int argc, char *argv[]) {
 
 
     MSG msg = {0};
-    while (msg.message != WM_QUIT) {
+    while (1) {
 
 
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0) {
             TranslateMessage(&msg);
+            SizingCheck(&msg);
             DispatchMessage(&msg);
         }
-
+        if (msg.message == WM_QUIT)
+            break;
 
         // Setup miscelannous data if needed
         {
@@ -1381,72 +1319,26 @@ int main(int argc, char *argv[]) {
 
             world_max.x = winproc_data.width / 2.f;
             world_max.y = winproc_data.height / 2.f;
-            gnd_obj.translate.y = world_max.y;
+            //gnd_obj.translate.y = world_max.y;
 
             if (animate_camera)
                 cam_rotate.y += M_PI / 180.0;
 
-            if (go_back)
-                spline_t -= animate_spline_speed;
-            else
-                spline_t += animate_spline_speed;
-            if (spline_t >= 1.f)
-                go_back = true;
-            if (spline_t <= 0.f)
-                go_back = false;
-
+            //Timing
             {
-                Vec3 arr[] = {base_vertices_obj[0].translate,
-                              base_vertices_obj[1].translate,
-                              base_vertices_obj[2].translate,
-                              base_vertices_obj[3].translate};
-                pointer_obj[0].translate = cubic_bezier_pos_func(arr, spline_t);
-                pointer_obj[1].translate = vec3_add(pointer_obj[0].translate,
-                                                    vec3_scale_fl(cubic_bezier_grad_func(arr, spline_t),
-                                                                  grad_len_scale));
-                pointer_obj[2].translate = vec3_add(pointer_obj[0].translate,
-                                                   vec3_scale_fl(cubic_bezier_acc_func(arr, spline_t),
-                                                                 accln_len_scale));
-                pointer_obj[3].translate = vec3_add(pointer_obj[0].translate,
-                                                   vec3_scale_fl(cubic_bezier_jerk_func(arr, spline_t),
-                                                                 jerk_len_scale));
+                inst_time = timer_sec(end_monotonic_timer(&frame_timer));
+                inst_freq = 1.0 / inst_time;
+
+                curr_frame_time = get_moving_avg(time_samples, &curr_time_sample, _countof(time_samples), inst_time);
+                curr_frame_freq = get_moving_avg(freq_samples, &curr_freq_sample, _countof(freq_samples), inst_freq);
+
             }
+
+
 
             bool true_val = true;
             bool active_changed = false;
 
-            if (winproc_data.char_pressed == true) {
-                struct CharacterModel *ptr =
-                        search_character_model(charac_models, winproc_data.char_codepoint);
-                if (ptr) {
-                    active_obj = obj_count++;
-                    object_solid_mode[active_obj] = true;
-                    scene_objs[active_obj] = (struct Object3D) {
-                            .ptr_model = &ptr->model,
-                            .color = (Vec3) {1.f, 1.f, 1.f},
-                            .rotate = (Vec3) {M_PI},
-                            .translate = (Vec3) {0},
-                            .scale = (Vec3) {1.f, 1.f, 1.f},
-                    };
-                    active_changed = true;
-                } else {
-                    if (push_character_model(&stk_allocr, &stk_offset, ptr_alloc_callbacks,
-                                             &gpu_mem_allocr, device.device, &charac_models,
-                                             winproc_data.char_codepoint)) {
-
-                        active_obj = obj_count++;
-                        object_solid_mode[active_obj] = true;
-                        scene_objs[active_obj] = (struct Object3D) {
-                                .ptr_model = &charac_models->model,
-                                .color = (Vec3) {1.f, 1.f, 1.f},
-                                .rotate = (Vec3) {M_PI},
-                                .translate = (Vec3) {0},
-                                .scale = (Vec3) {1.f, 1.f, 1.f},
-                        };
-                        active_changed = true;
-                    }
-                }
-            }
             winproc_data.char_pressed = false;
             {
                 igBegin("3D Object Info", &true_val, 0);
@@ -1476,6 +1368,18 @@ int main(int argc, char *argv[]) {
                     };
                     active_changed = true;
                 }
+                if (igButton("Create Plane", (ImVec2) {0})) {
+                    active_obj = obj_count++;
+                    object_solid_mode[active_obj] = true;
+                    scene_objs[active_obj] = (struct Object3D) {
+                            .ptr_model = &ground_model,
+                            .color = (Vec3) {1.f, 1.f, 1.f},
+                            .rotate = (Vec3) {0},
+                            .translate = (Vec3) {0},
+                            .scale = (Vec3) {1.f, 1.f, 1.f},
+                    };
+                    active_changed = true;
+                }
 
 
                 if (igButton("Next Object", (ImVec2) {0})) {
@@ -1488,30 +1392,10 @@ int main(int argc, char *argv[]) {
                     active_obj = (active_obj - 1);
                     active_changed = true;
                 }
-                igSliderFloat("Spline Radius", &tube_radius, 10.f, 300.f, "%.1f", 0);
-                {
-                    float log_grad = logf(grad_len_scale);
-                    igSliderFloat("Spline Grad Scale", &log_grad, -10.f, 4.f, "%.2f", 0);
-                    grad_len_scale = expf(log_grad);
-                }
-                {
-                    float log_acc = logf(accln_len_scale);
-                    igSliderFloat("Spline Accn Scale", &log_acc, -10.f, 4.f, "%.2f", 0);
-                    accln_len_scale = expf(log_acc);
-                }
 
-
-                igSliderFloat("Spline t", &spline_t, 0.f, 1.f, "%.2f", 0);
-                igSliderFloat("Spline Ride Animation Speed", &animate_spline_speed, 0.f, 0.1f, "%.3f", 0);
-                if (igButton("Update Spline", (ImVec2) {0})) {
-                    vkDeviceWaitIdle(device.device);
-                    Vec3 arr[] = {base_vertices_obj[0].translate,
-                                  base_vertices_obj[1].translate,
-                                  base_vertices_obj[2].translate,
-                                  base_vertices_obj[3].translate};
-                    remodel_verts_tube(sample_tube, tube_sides, tube_divs, tube_radius, cubic_bezier_pos_func,
-                                       cubic_bezier_grad_func, cubic_bezier_acc_func, arr);
-                }
+                igSliderFloat("Scene Animation Factor", &animation_factor, 0.f, 30.f, "%.3f", 0);
+                igSliderFloat("Scene Animation Step", &animation_step, 0.001f, 3.f, "%.3f", 0);
+                igCheckbox("Animate",&do_animate);
 
                 igEnd();
             }
@@ -1519,23 +1403,27 @@ int main(int argc, char *argv[]) {
             {
                 igBegin("Current Model", &true_val, 0);
 
-                igColorEdit3("Object Color", scene_objs[active_obj].color.comps, 0);
-                igInputFloat3("Object Position", scene_objs[active_obj].translate.comps, "%.2f", 0);
-                Vec3 dummy = vec3_to_degrees(scene_objs[active_obj].rotate);
-                igInputFloat3("Object rotations Degree", dummy.comps, "%.2f", 0);
-                scene_objs[active_obj].rotate = vec3_to_radians(dummy);
-                igInputFloat3("Object scale factor", scene_objs[active_obj].scale.comps, "%.2f", 0);
+                if (obj_count > 0) {
 
-
-                igSelectable_BoolPtr("Draw Surface", object_solid_mode + active_obj, 0,
-                                     (ImVec2) {0});
-
+                    igColorEdit3("Object Color", scene_objs[active_obj].color.comps, 0);
+                    igInputFloat3("Object Position", scene_objs[active_obj].translate.comps, "%.2f", 0);
+                    Vec3 dummy = vec3_to_degrees(scene_objs[active_obj].rotate);
+                    igInputFloat3("Object rotations Degree", dummy.comps, "%.2f", 0);
+                    scene_objs[active_obj].rotate = vec3_to_radians(dummy);
+                    igInputFloat3("Object scale factor", scene_objs[active_obj].scale.comps, "%.2f", 0);
+                    igSliderFloat3("Object Velocity", velocities + active_obj, -150.f, 150.f, "%.3f", 0);
+                    igSliderFloat3("Object Acceleration", accelerations + active_obj, -6.f, 6.f, "%.3f", 0);
+                    igSliderFloat("Object Mass", masses + active_obj, -1.f, 500.f, "%.3f", 0);
+                    igSelectable_BoolPtr("Draw Surface", object_solid_mode + active_obj, 0,
+                                         (ImVec2) {0});
+                }
 
                 igEnd();
             }
 
             {
                 igBegin("Scene Info", &true_val, 0);
+                igText("FPS : %.2lf, Frame Time : %.3lf ms", curr_frame_freq, curr_frame_time IMILLI);
                 igColorEdit3("Light Color", light_col.comps, 0);
                 igInputFloat3("Light Position", light_pos.comps, "%.3f", 0);
                 igColorEdit3("Sky Color", clear_col.comps, 0);
@@ -1588,6 +1476,89 @@ int main(int argc, char *argv[]) {
             if (igGetIO()->ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
                 igUpdatePlatformWindows();
                 igRenderPlatformWindowsDefault(NULL, NULL);
+            }
+        }
+
+        if (do_animate && (animation_factor > 0.001f)) {
+            //Simulate
+
+            residual_time += inst_time * animation_factor;
+            coll_objs[0].shape_type = COLL_SHAPE_PLANE;
+            coll_objs[0].shape.plane_normal = (Vec3) {0.f, -1.f, 0.f};
+            coll_objs[0].pos = gnd_obj.translate;
+            coll_objs[0].vel = (Vec3) {0};
+            coll_objs[0].mass = -1.f;
+            coll_objs[0].force = (Vec3) {0};
+            for_range(i, 0, obj_count) {
+                coll_objs[i + 1].mass = masses[i];
+                coll_objs[i + 1].force = vec3_scale_fl(accelerations[i], masses[i]);
+                coll_objs[i + 1].vel = velocities[i];
+                coll_objs[i + 1].pos = scene_objs[i].translate;
+                if(scene_objs[i].ptr_model == &ground_model){
+                    coll_objs[i+1].shape_type = COLL_SHAPE_PLANE;
+                    Mat4 rot_mat = mat4_rotation_XYZ(scene_objs[i].rotate);
+                    coll_objs[i+1].shape.plane_normal = vec3_from_vec4( mat4_multiply_vec(&rot_mat, (Vec4){0.f,-1.f,0.f,0.f}));
+                }
+                else {
+                    coll_objs[i + 1].shape_type = COLL_SHAPE_SPHERE;
+                    coll_objs[i + 1].shape.sphere_radius = scene_objs[i].scale.x * 50;
+                }
+            }
+
+            //For debugging
+            Collidable copies[_countof(coll_objs)];
+            memcpy(copies,coll_objs,sizeof(copies));
+
+            //Find total energy, {no momentum for now as things with infinite mass complicate}
+            double Et0 = 0.0;
+            double P0[3] = {0,0,0};
+            int steps_count = 0;
+
+            while (residual_time > animation_step) {
+                steps_count++;
+                resolve_collision(coll_objs, animation_step, obj_count + 1,P0);
+                residual_time -= animation_step;
+            }
+
+            //Add initial energy and momentums
+            for_range(i,0,obj_count + 1){
+                if(copies[i].mass > 0.f){
+                    double Px = copies[i].vel.x * copies[i].mass + copies[i].force.x * steps_count * animation_step ;
+                    double Py = copies[i].vel.y * copies[i].mass + copies[i].force.y * steps_count * animation_step ;
+                    double Pz = copies[i].vel.z * copies[i].mass + copies[i].force.z * steps_count * animation_step ;
+                    Et0 += 0.5 * (Px * Px + Py * Py + Pz * Pz) / copies[i].mass;
+                    P0[0] += Px;
+                    P0[1] += Py;
+                    P0[2] += Pz;
+                }
+            }
+
+            //Subtract total energy of converted system
+            for_range(i,0,obj_count + 1){
+                if(coll_objs[i].mass > 0.f){
+                    double Px = coll_objs[i].vel.x * coll_objs[i].mass + coll_objs[i].force.x * steps_count * animation_step ;
+                    double Py = coll_objs[i].vel.y * coll_objs[i].mass + coll_objs[i].force.y * steps_count * animation_step ;
+                    double Pz = coll_objs[i].vel.z * coll_objs[i].mass + coll_objs[i].force.z * steps_count * animation_step ;
+                    Et0 -= 0.5 * (Px * Px + Py * Py + Pz * Pz) / coll_objs[i].mass;
+                    P0[0] -= Px;
+                    P0[1] -= Py;
+                    P0[2] -= Pz;
+                }
+            }
+
+#define is_almost_zero(x)   (((x) >= -0.0001) && ((x) <= 0.0001))
+            C_ASSERT(is_almost_zero(Et0) && is_almost_zero(P0[0]) && is_almost_zero(P0[1]) && is_almost_zero(P0[2]));
+            if((!is_almost_zero(Et0) || !is_almost_zero(P0[0]) || !is_almost_zero(P0[1]) || !is_almost_zero(P0[2]))){
+                DebugBreak();
+            }
+
+#undef is_almost_zero
+
+
+            gnd_obj.translate = coll_objs[0].pos;
+            for_range(i, 0, obj_count) {
+                velocities[i] = coll_objs[i + 1].vel;
+                scene_objs[i].translate = coll_objs[i + 1].pos;
             }
         }
         {
@@ -1669,7 +1640,7 @@ int main(int argc, char *argv[]) {
 
                 des_lights.light_col = vec4_from_vec3(light_col, 1.0f);
                 des_lights.light_src = vec4_from_vec3(light_pos, 1.f);
-                des_lights.view_pos = vec4_from_vec3(cam_translate,1.0f);
+                des_lights.view_pos = vec4_from_vec3(cam_translate, 1.0f);
 
                 *(struct DescriptorMats *) (g_matrix_uniform_buffers[curr_frame_in_flight]
                         .mapped_memory) = des_mats;
@@ -1763,17 +1734,17 @@ int main(int argc, char *argv[]) {
                 // Decrease old swapchain life one by one
                 // TODO:: later maybe implement a feature to add swapchain life
                 // in begin rendering
-                if (old_swapchain_data.swapchain_life && (old_swapchain_data.swapchain_life != -1))
-                    old_swapchain_data.swapchain_life &= ~(1 << img_inx);
+                //if (old_swapchain_data.swapchain_life && (old_swapchain_data.swapchain_life != -1))
+                //    old_swapchain_data.swapchain_life &= ~(1 << img_inx);
 
                 // To prevent cases that may occur if swapchain images are very
                 // less
                 curr_frame_in_flight =
-                        (curr_frame_in_flight + 1) % min(max_frames_in_flight, min_surface_img_count);
+                        (curr_frame_in_flight + 1) % _min(max_frames_in_flight, min_surface_img_count);
             }
         }
     }
-
+    LSMCleanup();
 
     failure = MAIN_FAIL_OK;
 
@@ -1786,21 +1757,12 @@ int main(int argc, char *argv[]) {
         // label
 
         case MAIN_FAIL_OK:
-            while (charac_models) {
-                clear_model(ptr_alloc_callbacks, device.device, &charac_models->model);
-                charac_models = charac_models->next;
-            }
-
 
             err_code = 0;
         case MAIN_FAIL_MODEL_LOAD:
             clear_model(ptr_alloc_callbacks, device.device, &ground_model);
             clear_model(ptr_alloc_callbacks, device.device, &sphere_model);
             clear_model(ptr_alloc_callbacks, device.device, &cube_model);
-            clear_model(ptr_alloc_callbacks, device.device, &sample_tube);
-            clear_model(ptr_alloc_callbacks, device.device, &sample_grad);
-            clear_model(ptr_alloc_callbacks, device.device, &sample_accl);
-
 
             ImGui_ImplVulkan_Shutdown();
             ImGui_ImplWin32_Shutdown();
