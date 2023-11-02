@@ -7,135 +7,6 @@
 
 
 #define MAX_POLY_TERMS 5
-#include "polynomials.h"
-
-void collision_poly(Polynomial out, Collidable o1, Collidable o2){
-    poly_zero(out);
-    //Relative motions
-    Vec3 xr = vec3_sub(o2.pos,o1.pos);
-    Vec3 vr = vec3_sub(o2.vel, o1.vel);
-    Vec3 ar = vec3_sub(o2.force, o1.force);
-    float sum_r = o1.shape.sphere_radius + o2.shape.sphere_radius;
-
-
-    //Handle only sphere to sphere collision now
-    if(o1.shape_type == COLL_SHAPE_SPHERE && o2.shape_type == COLL_SHAPE_SPHERE){
-        out[4] = 0.25 * vec3_dot(ar,ar);
-        out[3] = vec3_dot(vr,ar);
-        out[2] = vec3_dot(vr,vr) + vec3_dot(xr,ar);
-        out[1] = 2 * vec3_dot(xr,vr);
-        out[0] = vec3_dot(xr,xr) - sum_r * sum_r;
-    }
-}
-
-//Given a, b find first root in (a,b], if not found return a -ve value
-//fx and dfx may be modified if necessary
-float find_first_collision(Polynomial fx,Polynomial dfx, float ta, float tb){
-    Polynomial chain[MAX_POLY_TERMS] = {0};
-    PolyCoeff a = ta;
-    PolyCoeff b = tb;
-    //fa and fb
-    PolyCoeff fa = poly_eval(fx,a);
-    PolyCoeff fb = poly_eval(fx,b);
-
-    //f'a and f'b
-    PolyCoeff dfa = poly_eval(dfx, a);
-    PolyCoeff dfb = poly_eval(dfx, b);
-
-    //If fa = dfa = 0, or fb = dfb = 0, then we have a problem
-
-    //Possible optimization : maybe when there is multiple roots, the collision is just "grazing"
-    //so maybe no need to process that
-
-    //Assumption, at most 2 roots occur at one place, maybe valid when relative motion ?
-    Polynomial dumm = {0};
-    bool changed = false;
-    if(poly_almost_zero(fa) && poly_almost_zero(dfa)) {
-        poly_reduce_div(dumm, fx, fa);
-        poly_copy(fx, dumm);
-        poly_zero(dumm);
-        changed = true;
-    }
-
-    if(poly_almost_zero(fb) && poly_almost_zero(dfb)){
-        poly_reduce_div(dumm, fx, fb);
-        poly_copy(fx, dumm);
-        poly_zero(dumm);
-        changed = true;
-    }
-    if(changed) {
-        poly_diff(dfx, fx);
-        fa = poly_eval(fx, a);
-        fb = poly_eval(fx, b);
-    }
-
-
-    int chain_n = poly_strum_chain(chain,fx);
-
-
-    int sa, sb;
-    sa = poly_strum_sign_count(chain,chain_n,a);
-    sb = poly_strum_sign_count(chain,chain_n, b);
-
-    if((sa - sb) <= 0)
-        return -4.f;
-
-
-
-    //There exists some solution, so bisection search for lower interval till one solution is achieved only
-    while((sa-sb)>1){
-        PolyCoeff m = b;
-        PolyCoeff fm  ;
-        PolyCoeff dfm ;
-        do{
-            m = (a+m)/2;
-            fm = poly_eval(fx,m);
-            dfm = poly_eval(dfx,m);
-        }
-        while(poly_almost_zero(fm) && poly_almost_zero(dfm));
-
-        int sm = poly_strum_sign_count(chain,chain_n,m);
-        //a,m if >= 1 roots
-        if((sa - sm) >= 1){
-            sb = sm;
-            b = m;
-            fb = fm;
-            dfb = dfm;
-        }
-        else{
-            sa = sm;
-            a = m;
-            fa = fm;
-            dfa = dfm;
-        }
-
-    }
-
-    //Use bisection method only for now
-    while(true){
-        if(!poly_almost_zero(fa) && poly_almost_zero((b-a) ))
-            break;
-        if(poly_almost_zero(fb))
-            return b;
-        PolyCoeff m = (a+b)/2;
-        PolyCoeff fm = poly_eval(fx,m);
-        if(poly_almost_zero(fm))
-            return m;
-
-        if(fm * fb > 0){
-            b = m;
-            fb = fm;
-        }
-        else{
-            a = m;
-            fa = fm;
-        }
-
-
-    }
-    return (a+b)/2;
-
-}
 
 //Minheap copied
 
@@ -156,7 +27,7 @@ HeapId make_id(int inx1, int inx2){
 }
 
 bool are_same_id(HeapId a, HeapId b){
-    return (a.obj1 == b.obj1) && (a.obj2 = b.obj2);
+    return (a.obj1 == b.obj1) && (a.obj2 == b.obj2);
 }
 
 ty_struct(HeapNode){
@@ -230,7 +101,7 @@ OptHeapNode minheap_insert(HeapNode* heap, int count, int max_count, HeapNode no
 }
 
 int heap_find(HeapNode* heap, int count, HeapId id){
-    for_range(i,0,count-1){
+    for_range(i,0,count){
         if(are_same_id(id,heap[i].id))
             return i;
     }
@@ -275,7 +146,7 @@ euler_collision(const Collidable *obj1, const Collidable *obj2, float time1, flo
     Vec3 v = vec3_sub(obj2[0].vel, obj1[0].vel);
 
     if(time1 < time2){
-        r = vec3_add(r, vec3_scale_fl(obj1->vel, time2 - time1));
+        r = vec3_add(r, vec3_scale_fl(obj1->vel, time1 - time2));
     }
     else{
         r = vec3_add(r, vec3_scale_fl(obj2->vel,time1 - time2));
@@ -462,6 +333,12 @@ void resolve_collision(Collidable* og_data, float delt, int obj_count, double * 
             if (obj1->shape_type == COLL_SHAPE_PLANE && obj2->shape_type == COLL_SHAPE_SPHERE) {
                 norm = obj1->shape.plane_normal;
             }
+            //For precision issues, make normal 0 if nearly zero
+            for_range(i, 0, 3){
+                if((norm.comps[i] >= -epsilon / 20.f) && (norm.comps[i] <= epsilon / 20.f)){
+                    norm.comps[i] = 0;
+                }
+            }
 
             //Velocities in direction of normal, away from normal
             float un1 = vec3_dot(obj1->vel, norm);
@@ -470,6 +347,8 @@ void resolve_collision(Collidable* og_data, float delt, int obj_count, double * 
             Vec3 vn2 = vec3_scale_fl(norm, un2);
             obj1->vel = vec3_sub(obj1->vel, vn1);
             obj2->vel = vec3_sub(obj2->vel, vn2);
+
+
 
             //Special cases then normal case
 
@@ -558,19 +437,23 @@ void resolve_collision(Collidable* og_data, float delt, int obj_count, double * 
             if ((i == top.id.obj1) || (i == top.id.obj2))
                 continue;
             float t_out = 0.f;
-            if (euler_collision(og_data + i, og_data + top.id.obj1, times[i], times[top.id.obj1], delt, &t_out)) {
-                HeapNode add;
-                add.wt = t_out;
-                add.id = make_id(i, top.id.obj1);
-                minheap_insert(heap_tree, node_count, max_nodes, add);
-                node_count++;
+            if(v1changed) {
+                if (euler_collision(og_data + i, og_data + top.id.obj1, times[i], times[top.id.obj1], delt, &t_out)) {
+                    HeapNode add;
+                    add.wt = t_out;
+                    add.id = make_id(i, top.id.obj1);
+                    minheap_insert(heap_tree, node_count, max_nodes, add);
+                    node_count++;
+                }
             }
-            if (euler_collision(og_data + i, og_data + top.id.obj2, times[i], times[top.id.obj2], delt, &t_out)) {
-                HeapNode add;
-                add.wt = t_out;
-                add.id = make_id(i, top.id.obj2);
-                minheap_insert(heap_tree, node_count, max_nodes, add);
-                node_count++;
+            if(v2changed) {
+                if (euler_collision(og_data + i, og_data + top.id.obj2, times[i], times[top.id.obj2], delt, &t_out)) {
+                    HeapNode add;
+                    add.wt = t_out;
+                    add.id = make_id(i, top.id.obj2);
+                    minheap_insert(heap_tree, node_count, max_nodes, add);
+                    node_count++;
+                }
             }
         }
 

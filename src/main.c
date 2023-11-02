@@ -1165,7 +1165,7 @@ int main(int argc, char *argv[]) {
 
 
     // Now create the vertex buffers, that are constant across frames
-    struct Model ground_model = {0};
+    struct Model plane_model = {0};
     struct Model sphere_model = {0};
     struct Model cube_model = {0};
 
@@ -1183,7 +1183,7 @@ int main(int argc, char *argv[]) {
                                  .vertex_count = out.vertex_count,
                                  .vertices_list = out.vertices,
                          },
-                         &ground_model) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
+                         &plane_model) < 0) return_main_fail(MAIN_FAIL_MODEL_LOAD);
 
         out = load_cuboid_aa(&stk_allocr, stk_offset, (Vec3) {100.f, 100.f, 100.f});
         if (!out.vertices || !out.indices) return_main_fail(MAIN_FAIL_MODEL_LOAD);
@@ -1217,35 +1217,119 @@ int main(int argc, char *argv[]) {
     }
 
     // Miscellaneous data + object data
-    struct Object3D gnd_obj = {
-            .ptr_model = &ground_model,
-            .translate = (Vec3) {0.f, 300.f, 0.f},
-            .rotate = (Vec3) {0},
-            .scale = (Vec3) {1.f, 1.f, 1.f},
-            .color = (Vec3) {0.4f, 0.8f, 0.2f},
-    };
     enum {
         SCENE_MAX_OBJ = 100,
     };
-    struct Object3D scene_objs[SCENE_MAX_OBJ];
+    struct Object3D scene_objs[SCENE_MAX_OBJ]= {0};
     bool object_solid_mode[SCENE_MAX_OBJ] = {0};
     Vec3 velocities[SCENE_MAX_OBJ] = {0};
     Vec3 accelerations[SCENE_MAX_OBJ] = {0};
     float masses[SCENE_MAX_OBJ] = {0};
-    Collidable coll_objs[SCENE_MAX_OBJ + 1] = {0};
+    int obj_count = 0;
+    int active_obj = -1;
+    float animation_step = 0.001f;
+    double residual_time = 0.f;
+
+    //Collection of all valid model pointers
+    struct Model* model_ptrs[] = {nullptr, &plane_model, &cube_model, &sphere_model};
+#define _PASTE_MACROS_INT_(P1, P2) P1 ## P2
+#define _PASTE_MACROS_(P1,P2) _PASTE_MACROS_INT_(P1,P2)
+#define ConvertPtrToId(ptr_var) \
+    do{                            \
+    for_range(_PASTE_MACROS_( inx,__LINE__), 0, _countof(model_ptrs)){\
+        if((ptr_var) == model_ptrs[_PASTE_MACROS_(inx,__LINE__)]){\
+            ptr_var = (struct Model*)_PASTE_MACROS_(inx,__LINE__);\
+            break;\
+        }\
+    }}                           \
+while(0)
+
+#define RecoverPtrFromId(ptr_var)\
+    do{\
+        (ptr_var) = (struct Model*)model_ptrs[(int)ptr_var]; \
+    }                             \
+    while(0)
+
+
+
+    bool active_changed = false;
+    FILE *debug_save_file = nullptr;
+    //save into file
+#define SaveAllToFile(filename)\
+do{ \
+    debug_save_file = fopen( filename, "wb");                                  \
+    for_range(i,0,SCENE_MAX_OBJ){    ConvertPtrToId(scene_objs[i].ptr_model);}                           \
+    fwrite(scene_objs, sizeof(scene_objs), 1, debug_save_file);\
+    for_range(i,0,SCENE_MAX_OBJ){    RecoverPtrFromId(scene_objs[i].ptr_model);}                           \
+    fwrite(object_solid_mode, sizeof(object_solid_mode), 1, debug_save_file);\
+    fwrite(velocities, sizeof(velocities), 1, debug_save_file);\
+    fwrite(accelerations, sizeof(accelerations), 1, debug_save_file);\
+    fwrite(masses, sizeof(masses), 1, debug_save_file);\
+    fwrite(&obj_count, sizeof(obj_count), 1, debug_save_file);\
+    fwrite(&active_obj, sizeof(active_obj), 1, debug_save_file);\
+    fwrite(&animation_step, sizeof(animation_step), 1, debug_save_file);\
+    fwrite(&residual_time, sizeof(residual_time), 1, debug_save_file);\
+    fclose(debug_save_file);\
+}while(0)
+
+    //load from file
+#define LoadAllFromFile(filename)                                                       \
+do {\
+    debug_save_file = fopen(filename, "rb");\
+    fread(scene_objs, sizeof(scene_objs), 1, debug_save_file);\
+    for_range(i,0,SCENE_MAX_OBJ){    RecoverPtrFromId(scene_objs[i].ptr_model);}                           \
+    fread(object_solid_mode, sizeof(object_solid_mode), 1, debug_save_file);\
+    fread(velocities, sizeof(velocities), 1, debug_save_file);\
+    fread(accelerations, sizeof(accelerations), 1, debug_save_file);\
+    fread(masses, sizeof(masses), 1, debug_save_file);\
+    fread(&obj_count, sizeof(obj_count), 1, debug_save_file);\
+    fread(&active_obj, sizeof(active_obj), 1, debug_save_file);\
+    fread(&animation_step, sizeof(animation_step), 1, debug_save_file);\
+    fread(&residual_time, sizeof(residual_time), 1, debug_save_file);\
+    fclose(debug_save_file);                                                            \
+    active_changed = true;                                                                                        \
+}while(0)
+
+    static const char* debug_names[] = {"debugfile","debugfile1", "debugfile2", "debugfile3", "debugfile4", "debugfile5"};
+    static char* curr_name = nullptr;
+    if(!curr_name)
+        curr_name = debug_names[1];
+
+#define remove_obj_inx(inx)                                                 \
+    do {\
+        if (inx < 0)\
+            break;\
+        if (inx >= obj_count)\
+            break;\
+\
+        for_range(i, inx + 1, obj_count) {\
+            scene_objs[i - 1] = scene_objs[i];\
+            object_solid_mode[i - 1] = object_solid_mode[i];\
+            velocities[i - 1] = velocities[i];\
+            accelerations[i - 1] = accelerations[i];\
+            masses[i - 1] = masses[i];\
+        }\
+        obj_count--;\
+        scene_objs[obj_count] = (struct Object3D) {0};\
+        object_solid_mode[obj_count] = false;\
+        velocities[obj_count] = (Vec3) {0};\
+        accelerations[obj_count] = (Vec3) {0};\
+        masses[obj_count] = -1.f;\
+        if(active_obj >= obj_count) {   \
+            active_obj = obj_count-1; \
+            active_changed = true;\
+        }\
+    }while(0)
 
 
     for_range(i, 0, SCENE_MAX_OBJ) {
         masses[i] = -1.f;
     }
 
-    int obj_count = 0;
-    int active_obj = -1;
 
-    float animation_step = 0.001f;
+    Collidable coll_objs[SCENE_MAX_OBJ + 1] = {0};
     float animation_factor = 1.f;
     bool do_animate = false;
-    double residual_time = 0.f;
     //Timer and timer info
     double time_samples[25] = {0};
     double freq_samples[65] = {0};
@@ -1337,7 +1421,6 @@ int main(int argc, char *argv[]) {
 
 
             bool true_val = true;
-            bool active_changed = false;
 
             winproc_data.char_pressed = false;
             {
@@ -1372,7 +1455,7 @@ int main(int argc, char *argv[]) {
                     active_obj = obj_count++;
                     object_solid_mode[active_obj] = true;
                     scene_objs[active_obj] = (struct Object3D) {
-                            .ptr_model = &ground_model,
+                            .ptr_model = &plane_model,
                             .color = (Vec3) {1.f, 1.f, 1.f},
                             .rotate = (Vec3) {0},
                             .translate = (Vec3) {0},
@@ -1391,6 +1474,9 @@ int main(int argc, char *argv[]) {
                     active_obj += (active_obj == 0) * obj_count;
                     active_obj = (active_obj - 1);
                     active_changed = true;
+                }
+                if(igButton("Remove Current Object", (ImVec2){0})) {
+                    remove_obj_inx(active_obj);
                 }
 
                 igSliderFloat("Scene Animation Factor", &animation_factor, 0.f, 30.f, "%.3f", 0);
@@ -1428,7 +1514,7 @@ int main(int argc, char *argv[]) {
                 igInputFloat3("Light Position", light_pos.comps, "%.3f", 0);
                 igColorEdit3("Sky Color", clear_col.comps, 0);
                 igSliderFloat("FOV : ", &fov, M_PI / 18.f, M_PI, NULL, 0);
-                igColorEdit3("Ground Color", gnd_obj.color.comps, 0);
+                //igColorEdit3("Ground Color", gnd_obj.color.comps, 0);
 
                 if (igButton("Exit", (ImVec2) {0}))
                     PostMessage(wnd_handle, WM_CLOSE, 0, 0);
@@ -1439,6 +1525,20 @@ int main(int argc, char *argv[]) {
                 igInputFloat3("Camera Rotation", cam_rotate.comps, "%.2f", 0);
                 igInputFloat3("Camera Zoom", cam_scale.comps, "%.2f", 0);
 
+                if(igButton("Save to file",(ImVec2){0})) {
+                    SaveAllToFile(curr_name);
+                }
+                if(igButton("Load from file", (ImVec2){0})) {
+                    LoadAllFromFile(curr_name);
+                }
+
+                if(igBeginCombo("Debug file to save/load",curr_name,0)) {
+                    for_range(i, 0, _countof(debug_names)) {
+                        if (igButton(debug_names[i], (ImVec2) {0}))
+                            curr_name = debug_names[i];
+                    }
+                    igEndCombo();
+                }
 
                 {
                     int control =
@@ -1468,6 +1568,7 @@ int main(int argc, char *argv[]) {
                     winproc_data.ptr_scale = &scene_objs[active_obj].scale;
                 }
             }
+            active_changed = false;
 
             igRender();
 
@@ -1478,89 +1579,89 @@ int main(int argc, char *argv[]) {
                 igRenderPlatformWindowsDefault(NULL, NULL);
             }
         }
+#define is_almost_zero(x)   (((x) >= -0.0001) && ((x) <= 0.0001))
 
         if (do_animate && (animation_factor > 0.001f)) {
             //Simulate
 
             residual_time += inst_time * animation_factor;
-            coll_objs[0].shape_type = COLL_SHAPE_PLANE;
-            coll_objs[0].shape.plane_normal = (Vec3) {0.f, -1.f, 0.f};
-            coll_objs[0].pos = gnd_obj.translate;
-            coll_objs[0].vel = (Vec3) {0};
-            coll_objs[0].mass = -1.f;
-            coll_objs[0].force = (Vec3) {0};
             for_range(i, 0, obj_count) {
-                coll_objs[i + 1].mass = masses[i];
-                coll_objs[i + 1].force = vec3_scale_fl(accelerations[i], masses[i]);
-                coll_objs[i + 1].vel = velocities[i];
-                coll_objs[i + 1].pos = scene_objs[i].translate;
-                if(scene_objs[i].ptr_model == &ground_model){
-                    coll_objs[i+1].shape_type = COLL_SHAPE_PLANE;
+                coll_objs[i].mass = masses[i];
+                coll_objs[i].force = vec3_scale_fl(accelerations[i], masses[i]);
+                coll_objs[i].vel = velocities[i];
+                coll_objs[i].pos = scene_objs[i].translate;
+                if(scene_objs[i].ptr_model == &plane_model){
+                    coll_objs[i].shape_type = COLL_SHAPE_PLANE;
                     Mat4 rot_mat = mat4_rotation_XYZ(scene_objs[i].rotate);
-                    coll_objs[i+1].shape.plane_normal = vec3_from_vec4( mat4_multiply_vec(&rot_mat, (Vec4){0.f,-1.f,0.f,0.f}));
+                    coll_objs[i].shape.plane_normal = vec3_from_vec4( mat4_multiply_vec(&rot_mat, (Vec4){0.f,-1.f,0.f,0.f}));
                 }
                 else {
-                    coll_objs[i + 1].shape_type = COLL_SHAPE_SPHERE;
-                    coll_objs[i + 1].shape.sphere_radius = scene_objs[i].scale.x * 50;
+                    coll_objs[i].shape_type = COLL_SHAPE_SPHERE;
+                    coll_objs[i].shape.sphere_radius = scene_objs[i].scale.x * 50;
                 }
             }
 
             //For debugging
-            Collidable copies[_countof(coll_objs)];
-            memcpy(copies,coll_objs,sizeof(copies));
-
             //Find total energy, {no momentum for now as things with infinite mass complicate}
-            double Et0 = 0.0;
-            double P0[3] = {0,0,0};
             int steps_count = 0;
+            double debug_residual_time = residual_time;
 
             while (residual_time > animation_step) {
                 steps_count++;
-                resolve_collision(coll_objs, animation_step, obj_count + 1,P0);
+                resolve_collision(coll_objs, animation_step, obj_count ,nullptr);
+
+                //Test conditions, won't break while testres == true
+                bool testres = true;
+
+		//Confine balls to inside of box made by first 6 planes
+                for_range(i,6,obj_count) {
+                    for_range(j,0,6){
+		                testres =testres && ((  vec3_dot(coll_objs[j].shape.plane_normal,
+					        vec3_sub(coll_objs[i].pos, coll_objs[j].pos))-
+					        coll_objs[i].shape.sphere_radius) >= 0.f);
+					    if(!testres)
+		                break;
+		     
+                    }
+                    if(!testres)
+		            break;
+                }
+		        //Let's confine balls' position and velocity to xy plane
+		        //for_range(i,6,obj_count){
+		        //  bool poszero = is_almost_zero(coll_objs[i].pos.z);
+		        //  bool velzero = is_almost_zero(coll_objs[i].vel.z * 10.f);
+		        //  testres = testres && poszero && velzero;
+                //  if(!testres)
+		        //    break;
+		        //}
+
+                //Now make sure no balls are inside other balls
+                for_range(i,6,obj_count) {
+                    for_range(j,i+1,obj_count) {
+                        float dist = vec3_magnitude(vec3_sub(coll_objs[i].pos,coll_objs[j].pos));
+                        dist = dist - coll_objs[i].shape.sphere_radius - coll_objs[j].shape.sphere_radius;
+                        testres = testres && (dist > 0.f);
+                        if(!testres)
+                            break;
+                    }
+                    if(!testres)
+                        break;
+                }
+
+		        if(!testres){
+		          //DebugBreak();
+		          SaveAllToFile(curr_name);
+		        }
+
+                for_range(i, 0, obj_count) {
+                    velocities[i] = coll_objs[i].vel;
+                    scene_objs[i].translate = coll_objs[i].pos;
+                }
                 residual_time -= animation_step;
             }
 
-            //Add initial energy and momentums
-            for_range(i,0,obj_count + 1){
-                if(copies[i].mass > 0.f){
-                    double Px = copies[i].vel.x * copies[i].mass + copies[i].force.x * steps_count * animation_step ;
-                    double Py = copies[i].vel.y * copies[i].mass + copies[i].force.y * steps_count * animation_step ;
-                    double Pz = copies[i].vel.z * copies[i].mass + copies[i].force.z * steps_count * animation_step ;
-                    Et0 += 0.5 * (Px * Px + Py * Py + Pz * Pz) / copies[i].mass;
-                    P0[0] += Px;
-                    P0[1] += Py;
-                    P0[2] += Pz;
-                }
-            }
-
-            //Subtract total energy of converted system
-            for_range(i,0,obj_count + 1){
-                if(coll_objs[i].mass > 0.f){
-                    double Px = coll_objs[i].vel.x * coll_objs[i].mass + coll_objs[i].force.x * steps_count * animation_step ;
-                    double Py = coll_objs[i].vel.y * coll_objs[i].mass + coll_objs[i].force.y * steps_count * animation_step ;
-                    double Pz = coll_objs[i].vel.z * coll_objs[i].mass + coll_objs[i].force.z * steps_count * animation_step ;
-                    Et0 -= 0.5 * (Px * Px + Py * Py + Pz * Pz) / coll_objs[i].mass;
-                    P0[0] -= Px;
-                    P0[1] -= Py;
-                    P0[2] -= Pz;
-                }
-            }
-
-#define is_almost_zero(x)   (((x) >= -0.0001) && ((x) <= 0.0001))
-            C_ASSERT(is_almost_zero(Et0) && is_almost_zero(P0[0]) && is_almost_zero(P0[1]) && is_almost_zero(P0[2]));
-            if((!is_almost_zero(Et0) || !is_almost_zero(P0[0]) || !is_almost_zero(P0[1]) || !is_almost_zero(P0[2]))){
-                DebugBreak();
-            }
-
-#undef is_almost_zero
-
-
-            gnd_obj.translate = coll_objs[0].pos;
-            for_range(i, 0, obj_count) {
-                velocities[i] = coll_objs[i + 1].vel;
-                scene_objs[i].translate = coll_objs[i + 1].pos;
-            }
         }
+#undef is_almost_zero
         {
 
             uint32_t img_inx = 0;
@@ -1663,15 +1764,15 @@ int main(int argc, char *argv[]) {
 
             PushConst pushes;
 
-            pushes = object_process_push_const(gnd_obj);
-
-
-            for (int i = 0; i < push_range_count; ++i) {
-                vkCmdPushConstants(rndr_cmd_buffers[curr_frame_in_flight], graphics_pipeline_layout,
-                                   push_ranges[i].stageFlags, push_ranges[i].offset,
-                                   push_ranges[i].size, (uint8_t *) &pushes + push_ranges[i].offset);
-            }
-            submit_model_draw(gnd_obj.ptr_model, rndr_cmd_buffers[curr_frame_in_flight]);
+            //pushes = object_process_push_const(gnd_obj);
+//
+//
+            //for (int i = 0; i < push_range_count; ++i) {
+            //    vkCmdPushConstants(rndr_cmd_buffers[curr_frame_in_flight], graphics_pipeline_layout,
+            //                       push_ranges[i].stageFlags, push_ranges[i].offset,
+            //                       push_ranges[i].size, (uint8_t *) &pushes + push_ranges[i].offset);
+            //}
+            //submit_model_draw(gnd_obj.ptr_model, rndr_cmd_buffers[curr_frame_in_flight]);
 
             for (int i = 0; i < obj_count; ++i) {
                 pushes = object_process_push_const(scene_objs[i]);
@@ -1760,7 +1861,7 @@ int main(int argc, char *argv[]) {
 
             err_code = 0;
         case MAIN_FAIL_MODEL_LOAD:
-            clear_model(ptr_alloc_callbacks, device.device, &ground_model);
+            clear_model(ptr_alloc_callbacks, device.device, &plane_model);
             clear_model(ptr_alloc_callbacks, device.device, &sphere_model);
             clear_model(ptr_alloc_callbacks, device.device, &cube_model);
 
